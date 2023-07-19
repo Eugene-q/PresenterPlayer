@@ -89,6 +89,9 @@
         <property name="cursor" stdset="0">
          <cursorShape>PointingHandCursor</cursorShape>
         </property>
+        <property name="focusPolicy">
+         <enum>Qt::NoFocus</enum>
+        </property>
        </widget>
       </item>
      </layout>
@@ -343,6 +346,9 @@
             </item>
             <item>
              <widget class="QSlider" name="sliderVol">
+              <property name="value">
+               <number>50</number>
+              </property>
               <property name="orientation">
                <enum>Qt::Vertical</enum>
               </property>
