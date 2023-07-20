@@ -250,6 +250,9 @@
               <property name="text">
                <string>Play</string>
               </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
              </widget>
             </item>
             <item row="1" column="3">
@@ -295,9 +298,12 @@
              </widget>
             </item>
             <item row="2" column="2">
-             <widget class="QPushButton" name="buttonReserved">
+             <widget class="QPushButton" name="buttonPause">
               <property name="text">
-               <string>?</string>
+               <string>Pause</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
               </property>
              </widget>
             </item>
