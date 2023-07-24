@@ -43,7 +43,7 @@
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="3,1">
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_7">
+     <layout class="QVBoxLayout" name="layputSongList">
       <property name="spacing">
        <number>0</number>
       </property>
@@ -97,12 +97,12 @@
      </layout>
     </item>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,0,0,0">
+     <layout class="QVBoxLayout" name="layoutControls" stretch="0,0,0,0,0">
       <property name="sizeConstraint">
        <enum>QLayout::SetDefaultConstraint</enum>
       </property>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout">
+       <layout class="QVBoxLayout" name="layputListControls">
         <item>
          <widget class="QLabel" name="labelListOperationsHeader">
           <property name="text">
@@ -114,7 +114,7 @@
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <layout class="QHBoxLayout" name="layoutListControlButtons">
           <property name="spacing">
            <number>0</number>
           </property>
@@ -150,7 +150,7 @@
        </layout>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_3">
+       <layout class="QVBoxLayout" name="layoutSignals">
         <property name="spacing">
          <number>0</number>
         </property>
@@ -165,7 +165,7 @@
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <layout class="QHBoxLayout" name="layoutSignalControls">
           <property name="spacing">
            <number>0</number>
           </property>
@@ -178,7 +178,7 @@
            </widget>
           </item>
           <item>
-           <layout class="QVBoxLayout" name="verticalLayout_2">
+           <layout class="QVBoxLayout" name="layoutSignalVol">
             <item>
              <widget class="QLabel" name="labelSignalVol">
               <property name="text">
@@ -224,7 +224,7 @@
        </spacer>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_5">
+       <layout class="QVBoxLayout" name="layoutPlayer">
         <item>
          <widget class="QLabel" name="labelPlaybackHeader">
           <property name="text">
@@ -236,9 +236,9 @@
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <layout class="QHBoxLayout" name="layoutButtonsAndVol">
           <item>
-           <layout class="QGridLayout" name="gridLayout">
+           <layout class="QGridLayout" name="layoutButtons">
             <property name="leftMargin">
              <number>0</number>
             </property>
@@ -283,17 +283,17 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="0">
-             <widget class="QPushButton" name="buttonPrevious">
-              <property name="text">
-               <string>Prev</string>
-              </property>
-             </widget>
-            </item>
             <item row="2" column="1">
              <widget class="QPushButton" name="buttonRepeat">
               <property name="text">
                <string>Rep</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QPushButton" name="buttonPrevious">
+              <property name="text">
+               <string>Prev</string>
               </property>
              </widget>
             </item>
@@ -336,7 +336,7 @@
            </spacer>
           </item>
           <item>
-           <layout class="QVBoxLayout" name="verticalLayout_4">
+           <layout class="QVBoxLayout" name="layoutVol">
             <property name="spacing">
              <number>0</number>
             </property>
@@ -344,7 +344,7 @@
              <number>7</number>
             </property>
             <item>
-             <widget class="QLabel" name="label_6">
+             <widget class="QLabel" name="labelVol">
               <property name="text">
                <string>Vol</string>
               </property>
@@ -364,10 +364,37 @@
           </item>
          </layout>
         </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="layoutPlayPos">
         <item>
-         <widget class="QSlider" name="sliderPlaypackPos">
+         <widget class="QLabel" name="labelCurrentPos">
+          <property name="text">
+           <string>00:00</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSlider" name="sliderPlaybackPos">
+          <property name="maximum">
+           <number>180000</number>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="tickPosition">
+           <enum>QSlider::TicksBothSides</enum>
+          </property>
+          <property name="tickInterval">
+           <number>60000</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelEndPos">
+          <property name="text">
+           <string>00:00</string>
           </property>
          </widget>
         </item>

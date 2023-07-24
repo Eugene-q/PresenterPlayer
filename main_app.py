@@ -13,6 +13,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
 from pygame import mixer
 from mutagen.mp3 import MP3 as Mp3
+from time import sleep
+from threading import Thread
 
 SONG_ITEM_UI_PATH = 'GUI/songitem.ui'
 MAIN_WINDOW_UI_PATH = 'GUI/main_window.ui'
@@ -75,7 +77,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self._add_song_widget(song_widget)
             path = self.playback_dir + song_filename
             song_info = Mp3(path).info
-            length=round(song_info.length, 2)
+            length = round(song_info.length, 3)
+            length = int(length * 1000) #convert to int milliseconds
             song = Song(id=self._get_id(),
                         path=path,
                         name=song_filename,
@@ -84,12 +87,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                         )
             self.songs.append(song)
             
-        self.current_track = 0
+        self.current_track_num = 0
+        self.start_pos = 0
+        self.allow_autopos = True
         self.volume = self.MID_VOL
         
         self.listSongs.setStyleSheet("QListWidget::item:selected{background:yellow;}")
-        self.listSongs.setCurrentRow(self.current_track)
-        self.listSongs.currentRowChanged.connect(self.change_song)
+        self.listSongs.setCurrentRow(self.current_track_num)
+        #self.listSongs.currentRowChanged.connect(self.change_song)
         
         self.buttonPrevious.clicked.connect(self.previous)
         self.buttonStop.clicked.connect(self.stop)
@@ -98,6 +103,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonNext.clicked.connect(self.play_next)
         
         self.sliderVol.valueChanged.connect(self.vol_change)
+        
+        self.labelEndPos.setText('00:00')
+        self.sliderPlaybackPos.sliderPressed.connect(self.deny_autopos)
+        self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
    
     def _get_id(self):
         id = self.id_source
@@ -110,13 +119,38 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.listSongs.addItem(item)
         self.listSongs.setItemWidget(item, song_widget)
         
-    def _play(self, track_name=None):
-        if track_name == None:
-            track_name=self.files[self.current_track]
+    def _play(self, start_pos=0):
+        track_name=self.files[self.current_track_num]
         mixer.music.load(self.playback_dir + track_name)
-        mixer.music.play()
+        mixer.music.play(start=start_pos)
         self.buttonPlay.setChecked(True)
-        print('PLAYING...', self.current_track, track_name)
+        length = round(Mp3(self.playback_dir + track_name).info.length, 3)
+        length = int(length * 1000)
+        self.sliderPlaybackPos.setMaximum(length)
+        print('PLAYING...', self.current_track_num, track_name)
+        Thread(target=self._update_playback_slider).start() 
+    
+    def deny_autopos(self):
+        self.allow_autopos = False
+        
+    def _update_playback_slider(self):
+        while mixer.music.get_busy() and self.allow_autopos:
+            playback_pos = mixer.music.get_pos()
+            print('playback position:', playback_pos)
+            self.sliderPlaybackPos.setValue(playback_pos)
+            sleep(0.25)
+            
+    def change_pos(self):
+        position = self.sliderPlaybackPos.value() / 1000
+        self.allow_autopos = True
+        if mixer.music.get_busy():
+            #mixer.music.rewind()
+            mixer.music.set_pos(position)
+            Thread(target=self._update_playback_slider).start() 
+        else:
+            self.start_pos = position
+        print('slider value:', self.sliderPlaybackPos.value())
+        print('changing position to', position) 
         
     def pause(self):
         if mixer.music.get_busy():
@@ -130,28 +164,29 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.buttonPause.setChecked(False)
         
     def play_next(self, event=None):
-        if self.current_track + 1 < len(self.files):
+        if self.current_track_num + 1 < len(self.files):
             if mixer.music.get_busy():
                 mixer.music.unload()
-            self.current_track += 1
-            self.listSongs.setCurrentRow(self.current_track)
+            self.current_track_num += 1
+            self.listSongs.setCurrentRow(self.current_track_num)
             self._play()
         else:
             print('LAST TRACK !')
         
     def play_pause(self, event=None):
-        if self.current_track == self.listSongs.currentRow():
+        if self.current_track_num == self.listSongs.currentRow():
             if mixer.music.get_busy():
                 mixer.music.pause()
                 print('PAUSED...')
             else:
                 if mixer.music.get_pos() < 0:
-                    self._play()
+                    self._play(self.start_pos)
                 else:
                     mixer.music.unpause()
+                    Thread(target=self._update_playback_slider).start() 
                     print('PLAYING...')
         else:
-            self.current_track = self.listSongs.currentRow()
+            self.current_track_num = self.listSongs.currentRow()
             if mixer.music.get_busy():
                 mixer.music.unload()
             self._play()        
@@ -162,11 +197,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPause.setChecked(False)
     
     def previous(self, event=None):
-        if self.current_track > 0:
+        if self.current_track_num > 0:
             if mixer.music.get_busy():
                 mixer.music.unload()
-            self.current_track -= 1
-            self.listSongs.setCurrentRow(self.current_track)
+            self.current_track_num -= 1
+            self.listSongs.setCurrentRow(self.current_track_num)
             self._play()
             self.play_pause()
         else:
@@ -174,7 +209,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             
     def change_song(self, song_index):
         pass
-        #self.current_track = song_index
+        #self.current_track_num = song_index
                     
     def vol_change(self, vol):
         self.volume = vol
