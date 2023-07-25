@@ -94,7 +94,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.listSongs.setStyleSheet("QListWidget::item:selected{background:yellow;}")
         self.listSongs.setCurrentRow(self.current_track_num)
-        #self.listSongs.currentRowChanged.connect(self.change_song)
+        self.listSongs.currentRowChanged.connect(self.change_song)
         
         self.buttonPrevious.clicked.connect(self.previous)
         self.buttonStop.clicked.connect(self.stop)
@@ -119,9 +119,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.listSongs.addItem(item)
         self.listSongs.setItemWidget(item, song_widget)
         
-    def _play(self, start_pos=0):
-        track_name=self.files[self.current_track_num]
+    def _play(self):
+        track_name = self.files[self.current_track_num]
         mixer.music.load(self.playback_dir + track_name)
+        start_pos = self.start_pos / 1000
         mixer.music.play(start=start_pos)
         self.buttonPlay.setChecked(True)
         length = round(Mp3(self.playback_dir + track_name).info.length, 3)
@@ -133,24 +134,25 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def deny_autopos(self):
         self.allow_autopos = False
         
-    def _update_playback_slider(self):
+    def _update_playback_slider(self,):
+        offset = mixer.music.get_pos()
         while mixer.music.get_busy() and self.allow_autopos:
-            playback_pos = mixer.music.get_pos()
+            current_pos = mixer.music.get_pos()
+            playback_pos = self.start_pos + current_pos - offset
             print('playback position:', playback_pos)
             self.sliderPlaybackPos.setValue(playback_pos)
             sleep(0.25)
             
     def change_pos(self):
-        position = self.sliderPlaybackPos.value() / 1000
+        slider_pos = self.sliderPlaybackPos.value()
         self.allow_autopos = True
+        self.start_pos = slider_pos
         if mixer.music.get_busy():
-            #mixer.music.rewind()
-            mixer.music.set_pos(position)
+            mixer.music.set_pos(slider_pos / 1000)
             Thread(target=self._update_playback_slider).start() 
-        else:
-            self.start_pos = position
         print('slider value:', self.sliderPlaybackPos.value())
-        print('changing position to', position) 
+        print('changing position to', slider_pos / 1000) 
+        print('changed pos to', mixer.music.get_pos())
         
     def pause(self):
         if mixer.music.get_busy():
@@ -180,7 +182,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 print('PAUSED...')
             else:
                 if mixer.music.get_pos() < 0:
-                    self._play(self.start_pos)
+                    self.start_pos = 0
+                    self._play()
                 else:
                     mixer.music.unpause()
                     Thread(target=self._update_playback_slider).start() 
