@@ -11,24 +11,39 @@ import sys
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
-from pygame import mixer
+from pygame import mixer, event
+import pygame
 from mutagen.mp3 import MP3 as Mp3
 from time import sleep
 from threading import Thread
+from threading import active_count as active_threads
 
 SONG_ITEM_UI_PATH = 'GUI/songitem.ui'
 MAIN_WINDOW_UI_PATH = 'GUI/main_window.ui'
 
 mixer.init()
+pygame.init()
+END_OF_SONG = event.custom_type()
 PLAYBACK_DIR = 'music/'
 
-class Song:
+CHANGE_POS_STEP = 250
+
+STOPED = 0
+PLAYING = 1
+PAUSED = 2
+       
+
+class SongWidget(QtWidgets.QWidget):
     def __init__(self, id,
                        path,
                        name,
                        length,
-                       widget,
                        ):
+        super().__init__()
+        uic.loadUi(SONG_ITEM_UI_PATH, self)
+        self.labelSongName.setText(name)
+        self.labelSongName.setToolTip(name)
+        
         self.id = id
         self.path = path
         self.name = name
@@ -36,24 +51,15 @@ class Song:
         self.length = length
         self.start_pos = 0
         self.end_pos = length
+        self.repeat = False
         self.fade_in = False
         self.fade_out = False
         self.miuted = False
-        self.widget = widget
-        
-
-class SongWidget(QtWidgets.QWidget):
-    def __init__(self, name):
-        super().__init__()
-        self.name = name
-        uic.loadUi(SONG_ITEM_UI_PATH, self)
-        self.labelSongName.setText(name)
-        self.labelSongName.setToolTip(name)
 
 
 class ClickerPlayerApp(QtWidgets.QMainWindow):
     HIGH_VOL = 100
-    MID_VOL = 60
+    MID_VOL = 50
     LOW_VOL = 0
     def __init__(self, playback_dir):
         super().__init__()
@@ -64,47 +70,47 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.controls = {QtCore.Qt.Key_Escape: self.play_next,
                          QtCore.Qt.Key_Shift: self.play_next,
                          QtCore.Qt.Key_Tab: self.play_pause,
+                         QtCore.Qt.Key_Space: self.play_pause,
                          QtCore.Qt.Key_Up: self.vol_up, 
                          QtCore.Qt.Key_Down: self.vol_down,
-                         QtCore.Qt.Key_B: self.previous,
+                         QtCore.Qt.Key_B: self.play_previous,
+                         QtCore.Qt.Key_Left: self.step_rewind, 
+                         QtCore.Qt.Key_Right: self.step_fforward,
                          }
                     
         self.playback_dir = playback_dir
-        self.files = [f_name for f_name in os.listdir(playback_dir) if not f_name.startswith('.')]
-        self.songs = []
-        for song_filename in self.files:
-            song_widget = SongWidget(song_filename)
-            self._add_song_widget(song_widget)
-            path = self.playback_dir + song_filename
-            song_info = Mp3(path).info
-            length = round(song_info.length, 3)
-            length = int(length * 1000) #convert to int milliseconds
-            song = Song(id=self._get_id(),
-                        path=path,
-                        name=song_filename,
-                        length=length,
-                        widget=song_widget,
-                        )
-            self.songs.append(song)
+        files = [f_name for f_name in os.listdir(playback_dir) if not f_name.startswith('.')]
+        self.add_songs(files)
             
-        self.current_track_num = 0
+        first_song = 0
         self.start_pos = 0
+        self.last_start_pos = 0
         self.allow_autopos = True
+        self.high_acuracy = False
+        #self.paused = False
         self.volume = self.MID_VOL
+        self.state = STOPED
+        
+        self.current_track_num = 10000
+        self.current_song = None
+        self.change_song(first_song)
         
         self.listSongs.setStyleSheet("QListWidget::item:selected{background:yellow;}")
-        self.listSongs.setCurrentRow(self.current_track_num)
+        self.listSongs.setCurrentRow(first_song)
         self.listSongs.currentRowChanged.connect(self.change_song)
         
-        self.buttonPrevious.clicked.connect(self.previous)
-        self.buttonStop.clicked.connect(self.stop)
+        self.buttonAddTrack.clicked.connect(self.add_songs)
+        
+        self.buttonPrevious.clicked.connect(self.play_previous)
+        self.buttonStop.clicked.connect(self._stop)
         self.buttonPlay.clicked.connect(self.play_pause)
-        self.buttonPause.clicked.connect(self.pause)
+        self.buttonPause.clicked.connect(self.play_pause)
         self.buttonNext.clicked.connect(self.play_next)
+        
+        self.buttonRepeat.clicked.connect(self.repeat)
         
         self.sliderVol.valueChanged.connect(self.vol_change)
         
-        self.labelEndPos.setText('00:00')
         self.sliderPlaybackPos.sliderPressed.connect(self.deny_autopos)
         self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
    
@@ -119,101 +125,195 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.listSongs.addItem(item)
         self.listSongs.setItemWidget(item, song_widget)
         
+    def add_songs(self, filenames=()):
+        if not filenames:
+            filepaths = QtWidgets.QFileDialog.getOpenFileNames(self, 
+                                                    'Добавить дорржки', 
+                                                    '.', 
+                                                    'Music Files (*.mp3 *.wav)',
+                                                    )[0]
+            filenames = []
+            for filepath in filepaths:
+                filedir, filename = os.path.split(filepath)
+                filenames.append(filename)
+                os.system(f'cp "{filepath}" "{self.playback_dir}"')
+            
+        for song_filename in filenames:
+            path = self.playback_dir + song_filename
+            song_info = Mp3(path).info
+            length = song_info.length
+            length = int(length * 1000) #convert to int milliseconds
+            song_widget = SongWidget(id=self._get_id(),
+                                     path=path,
+                                     name=song_filename,
+                                     length=length,
+                                     )
+            self._add_song_widget(song_widget)
+        
     def _play(self):
-        track_name = self.files[self.current_track_num]
-        mixer.music.load(self.playback_dir + track_name)
-        start_pos = self.start_pos / 1000
-        mixer.music.play(start=start_pos)
+        mixer.music.play(start=self.start_pos / 1000)
+        mixer.music.set_endevent(END_OF_SONG)
+        self.state = PLAYING
         self.buttonPlay.setChecked(True)
-        length = round(Mp3(self.playback_dir + track_name).info.length, 3)
-        length = int(length * 1000)
-        self.sliderPlaybackPos.setMaximum(length)
-        print('PLAYING...', self.current_track_num, track_name)
+        self.buttonPause.setChecked(False)
+        print('PLAYING...', self.current_track_num, self.current_song.name)
+        self.allow_autopos = True
         Thread(target=self._update_playback_slider).start() 
+           
+    def _pause(self):
+        self.start_pos = self.start_pos + mixer.music.get_pos()
+        #print('paused on ', self.start_pos)
+        mixer.music.stop()
+        self.state = PAUSED
+        self.buttonPlay.setChecked(False)
+        self.buttonPause.setChecked(True)
+        print('PAUSED...') 
+                
+    def _stop(self, event=None):
+        print('_STOP --')
+        self.start_pos = self.last_start_pos = 0
+        mixer.music.stop()
+        self.state = STOPED
+        self.buttonPlay.setChecked(False)
+        self.buttonPause.setChecked(False)
+        self.sliderPlaybackPos.setValue(0)
+        self.change_pos()
+        print('STOPED...')
+        
+    def play_pause(self, event=None):
+        if self.current_track_num == self.listSongs.currentRow():
+            print('play pos: ', self.start_pos + mixer.music.get_pos())
+            if self.state == STOPED: #self.start_pos + mixer.music.get_pos() < 0:
+                self._play()
+                if self.sender() and self.sender().objectName() == 'buttonPause':
+                    print('sender = pause')
+                    self._pause()
+            else:
+                if self.state == PAUSED or not mixer.music.get_busy():
+                    self._play()
+                else:
+                    self._pause()
+        else:
+            self.change_song(self.listSongs.currentRow())
+            print('current track != currentRow')
+            self._play()  
+            
+    def play_next(self, event=None):
+        if self.current_track_num + 1 < self.listSongs.count():
+            next_track_num = self.current_track_num + 1
+            self.listSongs.setCurrentRow(next_track_num)
+            self.change_song(next_track_num)
+            self._play()
+        else:
+            print('LAST TRACK !')      
     
+    def play_previous(self, event=None):
+        if self.current_track_num > 0:
+            next_track_num = self.current_track_num - 1
+            self.listSongs.setCurrentRow(next_track_num)
+            self.change_song(next_track_num)
+            self._play()
+            self._pause()
+        else:
+            print('FIRST TRACK !')
+            
     def deny_autopos(self):
         self.allow_autopos = False
         
     def _update_playback_slider(self,):
-        offset = mixer.music.get_pos()
-        while mixer.music.get_busy() and self.allow_autopos:
+        print('UPDATEPLAYBACK SLIDER --')
+        track_num = self.current_track_num
+        current_pos = mixer.music.get_pos()
+        playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
+        while (mixer.music.get_busy() and 
+               self.allow_autopos and
+               track_num == self.current_track_num
+               ):
             current_pos = mixer.music.get_pos()
-            playback_pos = self.start_pos + current_pos - offset
-            print('playback position:', playback_pos)
-            self.sliderPlaybackPos.setValue(playback_pos)
-            sleep(0.25)
+            playback_pos = self.start_pos + current_pos
+            #print(f'{self.start_pos} + {current_pos} = {playback_pos}')
+            if playback_pos % 250 < 20:
+                self.sliderPlaybackPos.setValue(playback_pos)
+            if playback_pos % 1000 < 20:
+                self.labelCurrentPos.setText(self.min_sec_from_ms(playback_pos))
+            sleep(0.01)
+        # print('mixer get busy:', mixer.music.get_busy())
+#         print('autopos:', self.allow_autopos)
+#         print('track:', track_num == self.current_track_num)
+        print('autoupdate off')
+        for ev in event.get():
+            print('event:', ev)
+            if (ev.type == END_OF_SONG and
+                self.current_song.length - playback_pos < 1000):
+                self._stop()
+                if self.current_song.repeat:
+                    self._play()
             
     def change_pos(self):
+        print('CHANGE_POS --')
         slider_pos = self.sliderPlaybackPos.value()
-        self.allow_autopos = True
         self.start_pos = slider_pos
         if mixer.music.get_busy():
-            mixer.music.set_pos(slider_pos / 1000)
+            print('mixer.get_busy --')
+            mixer.music.stop()
+            mixer.music.play(start=slider_pos / 1000)
+        self.labelCurrentPos.setText(self.min_sec_from_ms(slider_pos))
+        self.allow_autopos = True
+        if active_threads() < 2:
             Thread(target=self._update_playback_slider).start() 
-        print('slider value:', self.sliderPlaybackPos.value())
+        #print('slider value:', self.sliderPlaybackPos.value())
         print('changing position to', slider_pos / 1000) 
-        print('changed pos to', mixer.music.get_pos())
         
-    def pause(self):
-        if mixer.music.get_busy():
-            mixer.music.pause()
-            self.buttonPlay.setChecked(False)
-        else:
-            if mixer.music.get_pos() >= 0:
-                mixer.music.unpause()
-                self.buttonPlay.setChecked(True)
-            else:
-                self.buttonPause.setChecked(False)
+    def step_rewind(self):
+        new_slider_pos = self.sliderPlaybackPos.value() - CHANGE_POS_STEP
+        if new_slider_pos >= 0:
+            self.high_acuracy = True
+            self.deny_autopos()
+            self.sliderPlaybackPos.setValue(new_slider_pos)
+            self.change_pos() 
         
-    def play_next(self, event=None):
-        if self.current_track_num + 1 < len(self.files):
-            if mixer.music.get_busy():
-                mixer.music.unload()
-            self.current_track_num += 1
-            self.listSongs.setCurrentRow(self.current_track_num)
-            self._play()
-        else:
-            print('LAST TRACK !')
-        
-    def play_pause(self, event=None):
-        if self.current_track_num == self.listSongs.currentRow():
-            if mixer.music.get_busy():
-                mixer.music.pause()
-                print('PAUSED...')
-            else:
-                if mixer.music.get_pos() < 0:
-                    self.start_pos = 0
-                    self._play()
-                else:
-                    mixer.music.unpause()
-                    Thread(target=self._update_playback_slider).start() 
-                    print('PLAYING...')
-        else:
-            self.current_track_num = self.listSongs.currentRow()
-            if mixer.music.get_busy():
-                mixer.music.unload()
-            self._play()        
-            
-    def stop(self, event):
-        mixer.music.stop()
-        self.buttonPlay.setChecked(False)
-        self.buttonPause.setChecked(False)
-    
-    def previous(self, event=None):
-        if self.current_track_num > 0:
-            if mixer.music.get_busy():
-                mixer.music.unload()
-            self.current_track_num -= 1
-            self.listSongs.setCurrentRow(self.current_track_num)
-            self._play()
-            self.play_pause()
-        else:
-            print('FIRST TRACK !')
+    def step_fforward(self):
+        new_slider_pos = self.sliderPlaybackPos.value() + CHANGE_POS_STEP
+        if new_slider_pos <= self.current_song.length:
+            self.high_acuracy = True
+            self.deny_autopos()
+            self.sliderPlaybackPos.setValue(new_slider_pos)
+            self.change_pos()
+           
             
     def change_song(self, song_index):
-        pass
-        #self.current_track_num = song_index
+        print('CHANGE_SONG --')
+        if song_index != self.current_track_num:
+            print('new song num')
+            self.current_track_num = song_index
+            list_item = self.listSongs.item(song_index)
+            self.current_song = self.listSongs.itemWidget(list_item)
+            #mixer.music.unload()
+            self._stop()
+            mixer.music.load(self.current_song.path)
+            
+            self.buttonRepeat.setChecked(self.current_song.repeat)
+            self.sliderPlaybackPos.setMaximum(self.current_song.length)
+            self.start_pos = self.current_song.start_pos
+            self.labelCurrentPos.setText(self.min_sec_from_ms(self.current_song.start_pos))
+            self.labelEndPos.setText(self.min_sec_from_ms(self.current_song.end_pos))
                     
+    def min_sec_from_ms(self, milliseconds):
+        sec_float = milliseconds / 1000
+        sec_int = int(sec_float)
+        hundr_sec = int((sec_float - sec_int) * 100)
+        minutes = sec_int // 60
+        sec = sec_int % 60
+        if self.high_acuracy:
+            result = f'{minutes :02.0f}:{sec :02.0f}:{hundr_sec :02.0f}'
+        else:
+            result = f'{minutes :02.0f}:{sec :02.0f}'
+        self.high_acuracy = False
+        return result
+    
+    def repeat(self):
+        self.current_song.repeat = not self.current_song.repeat
+    
     def vol_change(self, vol):
         self.volume = vol
         mixer_volume = vol / 100
@@ -237,7 +337,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             print('MIN VOLUME!')
             
     def keyPressEvent(self, event):
-        print(event.key())
+        #print(event.key())
         action = self.controls.get(event.key())
         if action:
             action()
