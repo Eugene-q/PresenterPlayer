@@ -92,6 +92,12 @@
         <property name="focusPolicy">
          <enum>Qt::NoFocus</enum>
         </property>
+        <property name="dragEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="sortingEnabled">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
      </layout>
@@ -288,9 +294,6 @@
               <property name="text">
                <string>Rep</string>
               </property>
-              <property name="checkable">
-               <bool>true</bool>
-              </property>
              </widget>
             </item>
             <item row="1" column="0">
@@ -355,9 +358,6 @@
             </item>
             <item>
              <widget class="QSlider" name="sliderVol">
-              <property name="focusPolicy">
-               <enum>Qt::NoFocus</enum>
-              </property>
               <property name="value">
                <number>50</number>
               </property>
@@ -383,14 +383,8 @@
         </item>
         <item>
          <widget class="QSlider" name="sliderPlaybackPos">
-          <property name="focusPolicy">
-           <enum>Qt::NoFocus</enum>
-          </property>
           <property name="maximum">
            <number>180000</number>
-          </property>
-          <property name="singleStep">
-           <number>250</number>
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>

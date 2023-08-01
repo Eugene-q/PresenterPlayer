@@ -121,7 +121,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def _add_song_widget(self, song_widget):
         item = QtWidgets.QListWidgetItem()
-        item.setSizeHint(song_widget.sizeHint())
+        item.setSizeHint(QtCore.QSize(1, 28)) #width based on parent, height = 28
         self.listSongs.addItem(item)
         self.listSongs.setItemWidget(item, song_widget)
         
