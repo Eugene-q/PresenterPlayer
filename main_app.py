@@ -31,7 +31,11 @@ CHANGE_POS_STEP = 250
 STOPED = 0
 PLAYING = 1
 PAUSED = 2
+
 OK = 1024
+
+PLAY_LABEL = 'P'
+PAUSED_LABEL = 'Paused'
        
 
 class SongWidget(QtWidgets.QWidget):
@@ -108,7 +112,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPause.clicked.connect(self.play_pause)
         self.buttonNext.clicked.connect(self.play_next)
         
-        self.buttonRepeat.clicked.connect(self.repeat)
+        self.buttonRepeat.clicked.connect(self.set_repeat)
         
         self.sliderVol.valueChanged.connect(self.vol_change)
         
@@ -126,7 +130,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.listSongs.addItem(item)
         self.listSongs.setItemWidget(item, song_widget)
         
-        song_widget.setDisabled(True)
+        song_widget.buttonPlay.setDisabled(True)
+        song_widget.buttonDelete.setDisabled(True)
+        song_widget.buttonPlay.clicked.connect(self.play_pause)
+        song_widget.buttonRepeat.clicked.connect(self.set_repeat)
         song_widget.buttonDelete.clicked.connect(self._delete_song_widget)
     
     def _delete_song_widget(self):
@@ -168,6 +175,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.state = PLAYING
         self.buttonPlay.setChecked(True)
         self.buttonPause.setChecked(False)
+        self.current_song.buttonPlay.setText(PLAY_LABEL)
+        self.current_song.buttonPlay.setChecked(True)
         print('PLAYING...', self.current_track_num, self.current_song.name)
         self.allow_autopos = True
         Thread(target=self._update_playback_slider).start() 
@@ -179,6 +188,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.state = PAUSED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(True)
+        self.current_song.buttonPlay.setText(PAUSED_LABEL)
         print('PAUSED...') 
                 
     def _stop(self, event=None):
@@ -189,26 +199,28 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
         self.sliderPlaybackPos.setValue(0)
+        self.current_song.buttonPlay.setText(PLAY_LABEL)
+        self.current_song.buttonPlay.setChecked(False)
         self.change_pos()
         print('STOPED...')
         
     def play_pause(self, event=None):
-        if self.current_track_num == self.listSongs.currentRow():
-            print('play pos: ', self.start_pos + mixer.music.get_pos())
-            if self.state == STOPED: #self.start_pos + mixer.music.get_pos() < 0:
-                self._play()
-                if self.sender() and self.sender().objectName() == 'buttonPause':
-                    print('sender = pause')
-                    self._pause()
-            else:
-                if self.state == PAUSED or not mixer.music.get_busy():
-                    self._play()
-                else:
-                    self._pause()
+        #if self.current_track_num == self.listSongs.currentRow():
+        print('play pos: ', self.start_pos + mixer.music.get_pos())
+        if self.state == STOPED: #self.start_pos + mixer.music.get_pos() < 0:
+            self._play()
+            if self.sender() and self.sender().objectName() == 'buttonPause':
+                print('sender = pause')
+                self._pause()
         else:
-            self.change_song(self.listSongs.currentRow())
-            print('current track != currentRow')
-            self._play()  
+            if self.state == PAUSED or not mixer.music.get_busy():
+                self._play()
+            else:
+                self._pause()
+        # else:
+#             self.change_song(self.listSongs.currentRow())
+#             print('current track != currentRow')
+#             self._play() 
             
     def play_next(self, event=None):
         if self.current_track_num + 1 < self.listSongs.count():
@@ -298,7 +310,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if song_index != self.current_track_num:
             print('new song num')
             if self.current_song:
-                self.current_song.setDisabled(True)
+                self.current_song.buttonPlay.setText(PLAY_LABEL)
+                #self.current_song.buttonPlay.setChecked(False)
+                self.current_song.buttonPlay.setDisabled(True)
+                self.current_song.buttonDelete.setDisabled(True)
             self.current_track_num = song_index
             list_item = self.listSongs.item(song_index)
             self.current_song = self.listSongs.itemWidget(list_item)
@@ -306,7 +321,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self._stop()
             mixer.music.load(self.current_song.path)
             
-            self.current_song.setDisabled(False)
+            self.current_song.buttonPlay.setDisabled(False)
+            self.current_song.buttonDelete.setDisabled(False)
             self.buttonRepeat.setChecked(self.current_song.repeat)
             self.sliderPlaybackPos.setMaximum(self.current_song.length)
             self.start_pos = self.current_song.start_pos
@@ -326,8 +342,16 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.high_acuracy = False
         return result
     
-    def repeat(self):
-        self.current_song.repeat = not self.current_song.repeat
+    def set_repeat(self):
+        if (self.sender() == self.current_song.buttonRepeat or
+            self.sender() == self.buttonRepeat):
+            print('self:', self.current_song.buttonRepeat.isChecked())
+            self.current_song.repeat = not self.current_song.repeat
+            self.current_song.buttonRepeat.setChecked(self.current_song.repeat)
+            self.buttonRepeat.setChecked(self.current_song.repeat)
+        else:
+            sender = self.sender()
+            sender.setChecked(not sender.isChecked())
     
     def vol_change(self, vol):
         self.volume = vol
