@@ -31,6 +31,7 @@ CHANGE_POS_STEP = 250
 STOPED = 0
 PLAYING = 1
 PAUSED = 2
+OK = 1024
        
 
 class SongWidget(QtWidgets.QWidget):
@@ -124,6 +125,17 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         item.setSizeHint(QtCore.QSize(1, 28)) #width based on parent, height = 28
         self.listSongs.addItem(item)
         self.listSongs.setItemWidget(item, song_widget)
+        
+        song_widget.setDisabled(True)
+        song_widget.buttonDelete.clicked.connect(self._delete_song_widget)
+    
+    def _delete_song_widget(self):
+        confirm_box = QtWidgets.QMessageBox()
+        confirm_box.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+        confirm_box.setText('Точно удалить?')
+        ret = confirm_box.exec()
+        if ret == OK:
+            self.listSongs.takeItem(self.current_track_num)
         
     def add_songs(self, filenames=()):
         if not filenames:
@@ -285,6 +297,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('CHANGE_SONG --')
         if song_index != self.current_track_num:
             print('new song num')
+            if self.current_song:
+                self.current_song.setDisabled(True)
             self.current_track_num = song_index
             list_item = self.listSongs.item(song_index)
             self.current_song = self.listSongs.itemWidget(list_item)
@@ -292,6 +306,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self._stop()
             mixer.music.load(self.current_song.path)
             
+            self.current_song.setDisabled(False)
             self.buttonRepeat.setChecked(self.current_song.repeat)
             self.sliderPlaybackPos.setMaximum(self.current_song.length)
             self.start_pos = self.current_song.start_pos
