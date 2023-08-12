@@ -95,6 +95,9 @@
         <property name="dragEnabled">
          <bool>false</bool>
         </property>
+        <property name="dragDropMode">
+         <enum>QAbstractItemView::DragDrop</enum>
+        </property>
         <property name="sortingEnabled">
          <bool>true</bool>
         </property>

@@ -11,8 +11,7 @@ import sys
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
-from pygame import mixer, event
-import pygame
+from pygame import mixer
 from mutagen.mp3 import MP3 as Mp3
 from time import sleep
 from threading import Thread
@@ -22,8 +21,7 @@ SONG_ITEM_UI_PATH = 'GUI/songitem.ui'
 MAIN_WINDOW_UI_PATH = 'GUI/main_window.ui'
 
 mixer.init()
-#pygame.init()
-END_OF_SONG = event.custom_type()
+#END_OF_SONG = event.custom_type()
 PLAYBACK_DIR = 'music/'
 
 CHANGE_POS_STEP = 250
@@ -194,7 +192,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def _play(self):
         mixer.music.play(start=self.start_pos / 1000)
-        mixer.music.set_endevent(END_OF_SONG)
+        #mixer.music.set_endevent(END_OF_SONG)
         self.state = PLAYING
         self.buttonPlay.setChecked(True)
         self.buttonPause.setChecked(False)
@@ -283,18 +281,22 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.sliderPlaybackPos.setValue(playback_pos)
             if playback_pos % 1000 < 20:
                 self.labelCurrentPos.setText(self.min_sec_from_ms(playback_pos))
+            # if abs(self.current_song.length - playback_pos) < 30:
+#                 self._stop()
+#                 if self.current_song.repeat:
+#                     self._play()
+#                 break
             sleep(0.01)
+            print(abs(self.current_song.length - playback_pos))
         # print('mixer get busy:', mixer.music.get_busy())
-#         print('autopos:', self.allow_autopos)
-#         print('track:', track_num == self.current_track_num)
+        # print('autopos:', self.allow_autopos)
+        # print('track:', track_num == self.current_track_num)
         print('autoupdate off')
-        for ev in event.get():
-            #print('event:', ev)
-            if (ev.type == END_OF_SONG and
-                self.current_song.length - playback_pos < 1000):
-                self._stop()
-                if self.current_song.repeat:
-                    self._play()
+        if (abs(self.current_song.length - playback_pos) < 35 and 
+                    self.state == PLAYING):
+            self._stop()
+            if self.current_song.repeat:
+                self._play()
             
     def change_pos(self):
         print('CHANGE_POS --')
