@@ -22,7 +22,7 @@ SONG_ITEM_UI_PATH = 'GUI/songitem.ui'
 MAIN_WINDOW_UI_PATH = 'GUI/main_window.ui'
 
 mixer.init()
-pygame.init()
+#pygame.init()
 END_OF_SONG = event.custom_type()
 PLAYBACK_DIR = 'music/'
 
@@ -36,6 +36,8 @@ OK = 1024
 
 PLAY_LABEL = 'P'
 PAUSED_LABEL = 'Paused'
+
+LIST_ITEM_HEIGHT = 28
        
 
 class SongWidget(QtWidgets.QWidget):
@@ -45,10 +47,6 @@ class SongWidget(QtWidgets.QWidget):
                        length,
                        ):
         super().__init__()
-        uic.loadUi(SONG_ITEM_UI_PATH, self)
-        self.labelSongName.setText(name)
-        self.labelSongName.setToolTip(name)
-        
         self.id = id
         self.path = path
         self.name = name
@@ -60,6 +58,30 @@ class SongWidget(QtWidgets.QWidget):
         self.fade_in = False
         self.fade_out = False
         self.miuted = False
+        
+        uic.loadUi(SONG_ITEM_UI_PATH, self)
+        self.labelSongName.setText(name)
+        self.labelSongName.setToolTip(name)
+        
+        self.lineNewSongName.returnPressed.connect(self.save_name)
+        self.lineNewSongName.hide()
+        
+    def rename(self):
+        self.labelSongName.hide()
+        self.lineNewSongName.show()
+        self.lineNewSongName.setText(self.name)
+        self.lineNewSongName.selectAll()
+        self.lineNewSongName.setFocus()
+        
+    def save_name(self):
+        self.name = self.lineNewSongName.text()
+        self.labelSongName.setText(self.name)
+        self.normal_mode()
+        
+    def normal_mode(self):
+        self.lineNewSongName.clearFocus()
+        self.lineNewSongName.hide()
+        self.labelSongName.show()
 
 
 class ClickerPlayerApp(QtWidgets.QMainWindow):
@@ -73,7 +95,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.id_source = 0
         
         self.controls = {QtCore.Qt.Key_Escape: self.play_next,
-                         QtCore.Qt.Key_Shift: self.play_next,
+                         #QtCore.Qt.Key_Shift: self.play_next,
                          QtCore.Qt.Key_Tab: self.play_pause,
                          QtCore.Qt.Key_Space: self.play_pause,
                          QtCore.Qt.Key_Up: self.vol_up, 
@@ -103,6 +125,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.listSongs.setStyleSheet("QListWidget::item:selected{background:yellow;}")
         self.listSongs.setCurrentRow(first_song)
         self.listSongs.currentRowChanged.connect(self.change_song)
+        self.listSongs.itemDoubleClicked.connect(self.rename_song)
         
         self.buttonAddTrack.clicked.connect(self.add_songs)
         
@@ -126,22 +149,22 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def _add_song_widget(self, song_widget):
         item = QtWidgets.QListWidgetItem()
-        item.setSizeHint(QtCore.QSize(1, 28)) #width based on parent, height = 28
+        item.setSizeHint(QtCore.QSize(1, LIST_ITEM_HEIGHT)) #width based on parent, height = 28
         self.listSongs.addItem(item)
         self.listSongs.setItemWidget(item, song_widget)
         
         song_widget.buttonPlay.setDisabled(True)
-        song_widget.buttonDelete.setDisabled(True)
         song_widget.buttonPlay.clicked.connect(self.play_pause)
         song_widget.buttonRepeat.clicked.connect(self.set_repeat)
+        song_widget.buttonDelete.setDisabled(True)
         song_widget.buttonDelete.clicked.connect(self._delete_song_widget)
     
     def _delete_song_widget(self):
         confirm_box = QtWidgets.QMessageBox()
         confirm_box.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
         confirm_box.setText('Точно удалить?')
-        ret = confirm_box.exec()
-        if ret == OK:
+        result = confirm_box.exec()
+        if result == OK:
             self.listSongs.takeItem(self.current_track_num)
         
     def add_songs(self, filenames=()):
@@ -266,7 +289,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
 #         print('track:', track_num == self.current_track_num)
         print('autoupdate off')
         for ev in event.get():
-            print('event:', ev)
+            #print('event:', ev)
             if (ev.type == END_OF_SONG and
                 self.current_song.length - playback_pos < 1000):
                 self._stop()
@@ -310,8 +333,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if song_index != self.current_track_num:
             print('new song num')
             if self.current_song:
+                self.current_song.normal_mode()
                 self.current_song.buttonPlay.setText(PLAY_LABEL)
-                #self.current_song.buttonPlay.setChecked(False)
                 self.current_song.buttonPlay.setDisabled(True)
                 self.current_song.buttonDelete.setDisabled(True)
             self.current_track_num = song_index
@@ -376,10 +399,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             print('MIN VOLUME!')
             
     def keyPressEvent(self, event):
-        #print(event.key())
+        print(event.key())
         action = self.controls.get(event.key())
         if action:
             action()
+            
+    def rename_song(self, list_item=None):
+        #print('item', list_item)
+        renamed_song = self.listSongs.itemWidget(list_item)
+        renamed_song.rename()
 
 
 def main():
