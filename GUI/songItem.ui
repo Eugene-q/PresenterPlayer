@@ -67,6 +67,9 @@
      <property name="checkable">
       <bool>true</bool>
      </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
     </widget>
    </item>
    <item>
@@ -75,7 +78,7 @@
       <bool>true</bool>
      </property>
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -130,6 +133,9 @@
      <property name="checkable">
       <bool>true</bool>
      </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
     </widget>
    </item>
    <item>
@@ -145,6 +151,9 @@
      </property>
      <property name="text">
       <string>D</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
      </property>
     </widget>
    </item>
