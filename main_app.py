@@ -73,6 +73,34 @@ class SongWidget(QtWidgets.QWidget):
         self.lineNewSongName.hide()
         self.labelSongName.show()
 
+
+class SongList(QtWidgets.QListWidget):
+    def __init__(self, parent):
+        super().__init__()
+        #uic.loadUi(SONG_LIST_UI_PATH, self)
+        self.player = parent
+        self.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        self.setAcceptDrops(True)
+        self.dragEnabled()
+        self.setDragDropMode(QtWidgets.QListWidget.InternalMove)
+        self.setSortingEnabled(True)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        
+    def dragEnterEvent(self, event):
+        print('List: ACCEPT!!')
+        print('drag track num =', self.player.current_track_num)
+        event.accept()
+        #event.acceptProposedAction()
+        
+    def dropEvent(self, event):
+        print("List: DROP!!")
+        drop_index = self.indexAt(event.pos())
+        self.player.current_track_num = drop_index.row()
+        print('drop track num =', self.player.current_track_num)
+        super().dropEvent(event)
+        #event.setDropAction(QtCore.Qt.MoveAction)
+        #event.acceptProposedAction()
+        
         
 class ClickerPlayerApp(QtWidgets.QMainWindow):
     HIGH_VOL = 100
@@ -93,11 +121,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                          QtCore.Qt.Key_B: self.play_previous,
                          QtCore.Qt.Key_Left: self.step_rewind, 
                          QtCore.Qt.Key_Right: self.step_fforward,
+                         QtCore.Qt.Key_Z: self.qlist_info,
                          }
-                    
-        self.playback_dir = playback_dir
-        files = [f_name for f_name in os.listdir(playback_dir) if not f_name.startswith('.')]
-        self.add_songs(files)
             
         first_song = 0
         self.start_pos = 0
@@ -108,14 +133,17 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.state = STOPED
         
         self.current_track_num = 10000
+        self.previous_row = 0
         self.current_song = None
-        self.change_song(first_song)
         self.renamed_song = self.current_song
         
+        #listSongsWidget = SongList(self)
+        self.listSongs = SongList(self)#listSongsWidget.listSongs
+        self.layoutSongList.addWidget(self.listSongs)
         self.listSongs.setStyleSheet("QListWidget::item:selected{background:yellow;}")
-        self.listSongs.setCurrentRow(first_song)
-        self.listSongs.currentRowChanged.connect(self.exit_rename)
+        self.listSongs.currentRowChanged.connect(self.change_row)
         self.listSongs.itemDoubleClicked.connect(self.rename_song)
+        #self.listSongs.itemEntered.connect(self.qlist_info)
         
         self.buttonAddTrack.clicked.connect(self.add_songs)
         
@@ -131,6 +159,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.sliderPlaybackPos.sliderPressed.connect(self.deny_autopos)
         self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
+        
+        self.playback_dir = playback_dir
+        files = [f_name for f_name in os.listdir(playback_dir) if not f_name.startswith('.')]
+        self.add_songs(files)
+        self.change_song(first_song)
    
     def _get_id(self):
         id = self.id_source
@@ -211,8 +244,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
         self.sliderPlaybackPos.setValue(0)
-        if not self.current_song:
-            self.listSongs.takeItem(self.current_track_num)
         self.current_song.buttonPlay.setText(PLAY_LABEL)
         self.current_song.buttonPlay.setChecked(False)
         self.change_pos()
@@ -238,8 +269,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, event=None):
-        if self.current_track_num + 1 < self.listSongs.count():
-            next_track_num = self.current_track_num + 1
+        if mixer.music.get_busy():
+            current_track_num = self.current_track_num
+        else:
+            current_track_num = self.listSongs.currentRow()
+        if current_track_num + 1 < self.listSongs.count():
+            next_track_num = current_track_num + 1
             self.listSongs.setCurrentRow(next_track_num)
             self.change_song(next_track_num)
             self._play()
@@ -323,8 +358,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.current_song.normal_mode()
                 self.current_song.buttonPlay.setText(PLAY_LABEL)
                 self.current_song.buttonPlay.setChecked(False)
-                #self.current_song.buttonPlay.setDisabled(True)
                 self.current_song.buttonDelete.setDisabled(True)
+                self.previous_row = self.listSongs.currentRow()
+            self.listSongs.setCurrentRow(song_index)
             self.current_track_num = song_index
             list_item = self.listSongs.item(song_index)
             self.current_song = self.listSongs.itemWidget(list_item)
@@ -339,10 +375,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.labelCurrentPos.setText(self.min_sec_from_ms(self.current_song.start_pos))
             self.labelEndPos.setText(self.min_sec_from_ms(self.current_song.end_pos))
             
-    def get_song_index(self, song):
-        for index in range(self.listSongs.count()):
-            item = self.listSongs.item(index)
-            if self.listSongs.itemWidget(item) == song:
+    def get_song_index(self, selected_song):
+        for index, song in enumerate(self.get_all_songs()):
+            if song == selected_song:
                 return index
                     
     def min_sec_from_ms(self, milliseconds):
@@ -359,15 +394,20 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         return result
     
     def set_repeat(self):
-        if (self.sender() == self.current_song.buttonRepeat or
-            self.sender() == self.buttonRepeat):
-            print('self:', self.current_song.buttonRepeat.isChecked())
+        selected_song = self.get_song_by_index(self.listSongs.currentRow())
+        if self.sender() == selected_song.buttonRepeat:
+            selected_song.repeat = not selected_song.repeat
+            selected_song.buttonRepeat.setChecked(selected_song.repeat)
+            if selected_song == self.current_song:
+                self.buttonRepeat.setChecked(selected_song.repeat)
+        elif self.sender() == self.buttonRepeat:
             self.current_song.repeat = not self.current_song.repeat
             self.current_song.buttonRepeat.setChecked(self.current_song.repeat)
             self.buttonRepeat.setChecked(self.current_song.repeat)
         else:
             sender = self.sender()
             sender.setChecked(not sender.isChecked())
+            return 
     
     def vol_change(self, vol):
         self.volume = vol
@@ -395,22 +435,49 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.renamed_song = self.listSongs.itemWidget(list_item)
         self.renamed_song.rename()
         
-    def exit_rename(self):
-        self.renamed_song.normal_mode()
+    def change_row(self, row):
+        prev_song = self.get_song_by_index(self.previous_row)
+        prev_song.buttonDelete.setDisabled(True)
+        self.previous_row = row
+        song = self.get_song_by_index(row)
+        song.buttonDelete.setEnabled(True)
+        #self.buttonRepeat.setChecked(song.repeat)
+        if self.renamed_song:
+            self.renamed_song.normal_mode()
+        
+    def get_all_songs(self):
+        songs = []
+        for i in range(self.listSongs.count()):
+            item = self.listSongs.item(i)
+            songs.append(self.listSongs.itemWidget(item))
+        return songs
+        
+    def get_song_by_index(self, index):
+        item = self.listSongs.item(index)
+        song = self.listSongs.itemWidget(item)
+        return song
                 
     def keyPressEvent(self, event):
         print(event.key())
         action = self.controls.get(event.key())
         if action:
             action()
-    
+
+    def qlist_info(self):
+        for index, song in enumerate(self.get_all_songs()):
+            name = 'NONE'
+            if song:
+                name = song.name
+            print(index, name)
+            
     # def dragEnterEvent(self, event):
+    #     print('Main: ACCEPT')
     #     event.accept()
     #
     # def dropEvent(self, event):
     #     print('SOURCE', event.source())
     #     print('ITEM', event.source().currentItem())
-    #     prunt(dir(event))
+    #     print(dir(event))
 
 
 

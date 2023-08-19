@@ -43,7 +43,7 @@
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="3,1">
     <item>
-     <layout class="QVBoxLayout" name="layputSongList">
+     <layout class="QVBoxLayout" name="layoutSongList">
       <property name="spacing">
        <number>0</number>
       </property>
@@ -83,34 +83,6 @@
          </widget>
         </item>
        </layout>
-      </item>
-      <item>
-       <widget class="QListWidget" name="listSongs">
-        <property name="cursor" stdset="0">
-         <cursorShape>PointingHandCursor</cursorShape>
-        </property>
-        <property name="focusPolicy">
-         <enum>Qt::NoFocus</enum>
-        </property>
-        <property name="acceptDrops">
-         <bool>false</bool>
-        </property>
-        <property name="dragEnabled">
-         <bool>false</bool>
-        </property>
-        <property name="dragDropOverwriteMode">
-         <bool>false</bool>
-        </property>
-        <property name="dragDropMode">
-         <enum>QAbstractItemView::InternalMove</enum>
-        </property>
-        <property name="defaultDropAction">
-         <enum>Qt::CopyAction</enum>
-        </property>
-        <property name="sortingEnabled">
-         <bool>true</bool>
-        </property>
-       </widget>
       </item>
      </layout>
     </item>
