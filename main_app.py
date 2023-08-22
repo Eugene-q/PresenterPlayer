@@ -88,17 +88,30 @@ class SongList(QtWidgets.QListWidget):
         
     def dragEnterEvent(self, event):
         print('List: ACCEPT!!')
-        print('drag track num =', self.player.current_track_num)
-        event.accept()
-        #event.acceptProposedAction()
+        #print('drag track num =', self.player.current_track_num)
+        #event.accept()
+        event.acceptProposedAction()
         
     def dropEvent(self, event):
         print("List: DROP!!")
-        drop_index = self.indexAt(event.pos())
-        self.player.current_track_num = drop_index.row()
-        print('drop track num =', self.player.current_track_num)
-        super().dropEvent(event)
-        #event.setDropAction(QtCore.Qt.MoveAction)
+        # moved_song = self.itemWidget(self.item(self.currentRow()))
+#         moved_item = self.takeItem(self.currentRow())
+        drop_index = self.indexAt(event.pos()).row() - 1
+#         self.setItemWidget(moved_item, moved_song)
+#         #moved_item = 'test item'
+        print('drop index', drop_index)
+#         print('song', moved_song)
+#         print('item', moved_item)
+#         self.addItem(moved_item)
+#         self.setCurrentRow(drop_index)
+#         self.player.current_track_num = drop_index
+#         print('drop track num =', self.player.current_track_num)
+        if drop_index != self.currentRow():
+            super().dropEvent(event)
+        else:
+            print('currentRow', self.currentRow())
+        # event.setDropAction(QtCore.Qt.MoveAction)
+#         event.accept()
         #event.acceptProposedAction()
         
         
@@ -436,11 +449,18 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.renamed_song.rename()
         
     def change_row(self, row):
+        print('CHANGE RAW')
         prev_song = self.get_song_by_index(self.previous_row)
-        prev_song.buttonDelete.setDisabled(True)
+        if prev_song:
+            prev_song.buttonDelete.setDisabled(True)
+        else:
+            print('prev_song widget not detected!')
         self.previous_row = row
         song = self.get_song_by_index(row)
-        song.buttonDelete.setEnabled(True)
+        if song:
+            song.buttonDelete.setEnabled(True)
+        else:
+            print('Song widget not detected!')
         #self.buttonRepeat.setChecked(song.repeat)
         if self.renamed_song:
             self.renamed_song.normal_mode()
