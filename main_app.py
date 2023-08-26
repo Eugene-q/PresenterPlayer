@@ -87,33 +87,35 @@ class SongList(QtWidgets.QListWidget):
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         
     def dragEnterEvent(self, event):
-        print('List: ACCEPT!!')
+        #print('List: ACCEPT!!')
         #print('drag track num =', self.player.current_track_num)
         #event.accept()
         event.acceptProposedAction()
         
     def dropEvent(self, event):
         print("List: DROP!!")
-        # moved_song = self.itemWidget(self.item(self.currentRow()))
-#         moved_item = self.takeItem(self.currentRow())
-        drop_index = self.indexAt(event.pos()).row() - 1
-#         self.setItemWidget(moved_item, moved_song)
-#         #moved_item = 'test item'
-        print('drop index', drop_index)
-#         print('song', moved_song)
-#         print('item', moved_item)
-#         self.addItem(moved_item)
-#         self.setCurrentRow(drop_index)
-#         self.player.current_track_num = drop_index
-#         print('drop track num =', self.player.current_track_num)
-        if drop_index != self.currentRow():
-            super().dropEvent(event)
+        raw_drop_index = self.indexAt(event.pos()).row()
+        drop_indicator = self.dropIndicatorPosition()
+        from_index = self.currentRow()
+        if raw_drop_index > from_index:
+            drop_index = raw_drop_index + (drop_indicator - 2)
         else:
-            print('currentRow', self.currentRow())
-        # event.setDropAction(QtCore.Qt.MoveAction)
-#         event.accept()
-        #event.acceptProposedAction()
-        
+            drop_index = raw_drop_index + (drop_indicator - 1)
+        if drop_index != from_index: #to fix drop bag
+            active_song_index = self.player.current_track_num
+            print('active song index', active_song_index)
+            if active_song_index == from_index:
+                self.player.current_track_num = drop_index
+            elif from_index < active_song_index and drop_index >= active_song_index:
+                self.player.current_track_num -= 1
+            elif from_index > active_song_index and drop_index <= active_song_index:
+                self.player.current_track_num += 1
+            print('drop indicator position:', self.dropIndicatorPosition())
+            print('from index', from_index)
+            print('drop index', drop_index)
+            print('current track num =', self.player.current_track_num)
+            super().dropEvent(event)
+            
         
 class ClickerPlayerApp(QtWidgets.QMainWindow):
     HIGH_VOL = 100
@@ -271,6 +273,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             elif self.state == STOPED:
                 self.change_song(self.listSongs.currentRow())
         if self.state == STOPED:
+            #self.change_song(self.current_track_num)
             self._play()
             if self.sender() and self.sender().objectName() == 'buttonPause':
                 print('sender = pause')
@@ -282,7 +285,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, event=None):
-        if mixer.music.get_busy():
+        if self.state == PLAYING or self.state == PAUSED:
             current_track_num = self.current_track_num
         else:
             current_track_num = self.listSongs.currentRow()
@@ -309,12 +312,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def _update_playback_slider(self,):
         print('UPDATE_PLAYBACK SLIDER --')
-        track_num = self.current_track_num
+        #track_num = self.current_track_num
+        song = self.current_song
         current_pos = mixer.music.get_pos()
         playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
         while (mixer.music.get_busy() and 
                self.allow_autopos and
-               track_num == self.current_track_num
+               #track_num == self.current_track_num
+               song == self.current_song
                ):
             current_pos = mixer.music.get_pos()
             playback_pos = self.start_pos + current_pos
@@ -365,28 +370,28 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                      
     def change_song(self, song_index):
         print('CHANGE_SONG --')
-        if song_index != self.current_track_num:
-            print('new song num')
-            if self.current_song:
-                self.current_song.normal_mode()
-                self.current_song.buttonPlay.setText(PLAY_LABEL)
-                self.current_song.buttonPlay.setChecked(False)
-                self.current_song.buttonDelete.setDisabled(True)
-                self.previous_row = self.listSongs.currentRow()
-            self.listSongs.setCurrentRow(song_index)
-            self.current_track_num = song_index
-            list_item = self.listSongs.item(song_index)
-            self.current_song = self.listSongs.itemWidget(list_item)
-            self._stop()
-            mixer.music.load(self.current_song.path)
-            
-            #self.current_song.buttonPlay.setDisabled(False)
-            self.current_song.buttonDelete.setDisabled(False)
-            self.buttonRepeat.setChecked(self.current_song.repeat)
-            self.sliderPlaybackPos.setMaximum(self.current_song.length)
-            self.start_pos = self.current_song.start_pos
-            self.labelCurrentPos.setText(self.min_sec_from_ms(self.current_song.start_pos))
-            self.labelEndPos.setText(self.min_sec_from_ms(self.current_song.end_pos))
+        # if song_index != self.current_track_num:
+        #     print('new song num')
+        if self.current_song:
+            self.current_song.normal_mode()
+            self.current_song.buttonPlay.setText(PLAY_LABEL)
+            self.current_song.buttonPlay.setChecked(False)
+            self.current_song.buttonDelete.setDisabled(True)
+            self.previous_row = self.listSongs.currentRow()
+        self.listSongs.setCurrentRow(song_index)
+        self.current_track_num = song_index
+        list_item = self.listSongs.item(song_index)
+        self.current_song = self.listSongs.itemWidget(list_item)
+        self._stop()
+        mixer.music.load(self.current_song.path)
+        
+        #self.current_song.buttonPlay.setDisabled(False)
+        self.current_song.buttonDelete.setDisabled(False)
+        self.buttonRepeat.setChecked(self.current_song.repeat)
+        self.sliderPlaybackPos.setMaximum(self.current_song.length)
+        self.start_pos = self.current_song.start_pos
+        self.labelCurrentPos.setText(self.min_sec_from_ms(self.current_song.start_pos))
+        self.labelEndPos.setText(self.min_sec_from_ms(self.current_song.end_pos))
             
     def get_song_index(self, selected_song):
         for index, song in enumerate(self.get_all_songs()):
