@@ -198,12 +198,21 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song_widget.buttonDelete.clicked.connect(self._delete_song_widget)
     
     def _delete_song_widget(self):
-        confirm_box = QtWidgets.QMessageBox()
-        confirm_box.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-        confirm_box.setText('Точно удалить?')
-        result = confirm_box.exec()
-        if result == OK:
-            self.listSongs.takeItem(self.current_track_num)
+        delete_index = self.listSongs.currentRow()
+        if delete_index == self.current_track_num and self.state is not STOPED:
+            not_delete_current_track_box = QtWidgets.QMessageBox()
+            not_delete_current_track_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            not_delete_current_track_box.setText('Нельзя удалить то, что сейчас играет!')
+            result = not_delete_current_track_box.exec()
+        else:
+            confirm_box = QtWidgets.QMessageBox()
+            confirm_box.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+            confirm_box.setText('Точно удалить?')
+            result = confirm_box.exec()
+            if result == OK:
+                if delete_index < self.current_track_num:
+                    self.current_track_num -= 1
+                self.listSongs.takeItem(delete_index)
         
     def add_songs(self, filenames=()):
         if not filenames:
@@ -293,9 +302,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             next_track_num = current_track_num + 1
             self.listSongs.setCurrentRow(next_track_num)
             self.change_song(next_track_num)
+            self.current_track_num = next_track_num
             self._play()
         else:
-            print('LAST TRACK !')      
+            print('LAST TRACK !')  
+        print('NEXT: current track:', self.current_track_num)    
     
     def play_previous(self, event=None):
         if self.current_track_num > 0:
@@ -464,9 +475,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song = self.get_song_by_index(row)
         if song:
             song.buttonDelete.setEnabled(True)
+            if song == self.current_song:
+                self.buttonRepeat.setChecked(song.repeat)
+            if self.state is STOPED:
+                self.change_song(row)
         else:
-            print('Song widget not detected!')
-        #self.buttonRepeat.setChecked(song.repeat)
+            print('Song widget not detected!') 
         if self.renamed_song:
             self.renamed_song.normal_mode()
         
@@ -489,21 +503,13 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             action()
 
     def qlist_info(self):
+        print('INFO:')
+        print('current_track_num:', self.current_track_num)
         for index, song in enumerate(self.get_all_songs()):
             name = 'NONE'
             if song:
                 name = song.name
             print(index, name)
-            
-    # def dragEnterEvent(self, event):
-    #     print('Main: ACCEPT')
-    #     event.accept()
-    #
-    # def dropEvent(self, event):
-    #     print('SOURCE', event.source())
-    #     print('ITEM', event.source().currentItem())
-    #     print(dir(event))
-
 
 
 def main():
