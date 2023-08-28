@@ -104,11 +104,29 @@
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="layoutListControlButtons">
-          <property name="spacing">
-           <number>0</number>
-          </property>
-          <item>
+         <layout class="QGridLayout" name="layoutListOperations" rowstretch="0,0">
+          <item row="0" column="1">
+           <widget class="QPushButton" name="buttonSaveList">
+            <property name="text">
+             <string>Сохранить</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="buttonSaveListAs">
+            <property name="text">
+             <string>Сохранить как</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QPushButton" name="buttonClearList">
+            <property name="text">
+             <string>Очистить</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
            <widget class="QPushButton" name="buttonLoadList">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -118,20 +136,6 @@
             </property>
             <property name="text">
              <string>Загрузить</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="buttonSaveList">
-            <property name="text">
-             <string>Сохранить</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="buttonClearList">
-            <property name="text">
-             <string>Очистить</string>
             </property>
            </widget>
           </item>
