@@ -48,7 +48,7 @@
        <number>0</number>
       </property>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,1,0,0">
         <property name="spacing">
          <number>0</number>
         </property>
@@ -60,12 +60,28 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="labelSongListHeader">
+         <widget class="QPushButton" name="buttonSongListHeader">
           <property name="text">
            <string>Список звукозаписей</string>
           </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
+          <property name="flat">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="lineSongListHeader">
+          <property name="focusPolicy">
+           <enum>Qt::NoFocus</enum>
+          </property>
+          <property name="text">
+           <string>Список звукозаписей</string>
+          </property>
+          <property name="frame">
+           <bool>false</bool>
+          </property>
+          <property name="clearButtonEnabled">
+           <bool>false</bool>
           </property>
          </widget>
         </item>
