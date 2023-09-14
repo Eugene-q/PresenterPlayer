@@ -107,23 +107,28 @@ class SongWidget(QtWidgets.QWidget):
         self.labelSongName.show()
 
 
-class SongList(QtWidgets.QListWidget):
-    def __init__(self, parent, initial_save_file_path):
+class SongListWidget(QtWidgets.QWidget):
+    def __init__(self, player, initial_save_file_path):
         super().__init__()
         
         #GUI settings
-        self.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.setAcceptDrops(True)
-        self.dragEnabled()
-        self.setDragDropMode(QtWidgets.QListWidget.InternalMove)
-        self.setSortingEnabled(True)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setStyleSheet("QListWidget::item:selected{background:yellow;}")
+        uic.loadUi(SONG_LIST_UI_PATH, self)
+        self.list = SongList(self)
+        self.layoutSongList.addWidget(self.list)
         
-        self.currentRowChanged.connect(self.change_row)
-        self.itemDoubleClicked.connect(self.rename_song)
+        self.lineListHeader.hide()
+        self.lineListHeader.returnPressed.connect(self.save_list_name)
+        self.buttonListHeader.clicked.connect(self.rename_mode)
+        self.buttonListHeader.setToolTip(self.buttonListHeader.text())
+        self.buttonListHeader.setStyleSheet("text-align:left;")
+        self.buttonAddTrack.clicked.connect(self.add_songs)  
+        self.buttonSaveList.clicked.connect(self.save)
+        self.buttonSaveListAs.clicked.connect(self.save_as)
+        self.buttonLoadList.clicked.connect(self.load)
+        self.buttonClearList.clicked.connect(self.clear)
+        self.buttonDeleteList.clicked.connect(self.delete)
         
-        self.player = parent
+        self.player = player
         self.previous_row = 0
         self.renamed_song = None
         self.id_source = 0
@@ -136,100 +141,13 @@ class SongList(QtWidgets.QListWidget):
             self.save_as(DEFAULT_SONGLIST_NAME)
         else:
             self.load(initial_save_file_path)
+        #self.playing_num = 0
+        self.selected_song_index = 0
+        self.playing_song_index = self.selected_song_index
+        self.playing_song = self.list.get_song_by_index(self.selected_song_index)
+        self.list.setCurrentRow(0)
+        #self.player.load(self.playing_song)
         
-    def dragEnterEvent(self, event):
-        #print('List: ACCEPT!!')
-        #print('drag track num =', self.player.current_track_num)
-        #event.accept()
-        event.acceptProposedAction()
-        
-    def dropEvent(self, event):
-        print("List: DROP!!")
-        raw_drop_index = self.indexAt(event.pos()).row()
-        drop_indicator = self.dropIndicatorPosition()
-        from_index = self.currentRow()
-        if raw_drop_index > from_index:
-            drop_index = raw_drop_index + (drop_indicator - 2)
-        else:
-            drop_index = raw_drop_index + (drop_indicator - 1)
-        if drop_index != from_index: #to fix drop bag
-            active_song_index = self.player.current_track_num
-            print('active song index', active_song_index)
-            if active_song_index == from_index:
-                self.player.current_track_num = drop_index
-            elif from_index < active_song_index and drop_index >= active_song_index:
-                self.player.current_track_num -= 1
-            elif from_index > active_song_index and drop_index <= active_song_index:
-                self.player.current_track_num += 1
-            self.set_saved(False)
-            print('drop indicator position:', self.dropIndicatorPosition())
-            print('from index', from_index)
-            print('drop index', drop_index)
-            print('current track num =', self.player.current_track_num)
-            super().dropEvent(event)
-    
-    def change_row(self, row):
-        print('CHANGE ROW')
-        prev_song = self.get_song_by_index(self.previous_row)
-        if prev_song:
-            prev_song.buttonDelete.setDisabled(True)
-        else:
-            print('prev_song widget not detected!')
-        self.previous_row = row
-        song = self.get_song_by_index(row)
-        if song:
-            song.buttonDelete.setEnabled(True)
-            if song == self.player.current_song:
-                self.player.buttonRepeat.setChecked(song.repeat)
-            if self.player.state is STOPED:
-                self.player.change_song(row)
-        else:
-            print('Song widget not detected!') 
-        if self.renamed_song:
-            self.renamed_song.normal_mode()
-        self.normal_mode()
-    
-    def show_message_box(self, message, cancel=True):
-        message_box = QtWidgets.QMessageBox()
-        button_ok = QtWidgets.QMessageBox.Ok
-        button_cancel = QtWidgets.QMessageBox.Cancel
-        if cancel:
-            message_box.setStandardButtons(button_ok | button_cancel)
-        else:
-            message_box.setStandardButtons(button_ok)
-        message_box.setText(message)
-        return message_box.exec()
-    
-    def _get_id(self):   # TODO Переписать как генератор
-        id = self.id_source
-        self.id_source += 1
-        return id
-        
-    def _add_song_widget(self, song_widget):
-        item = QtWidgets.QListWidgetItem()
-        item.setSizeHint(QtCore.QSize(1, LIST_ITEM_HEIGHT)) #width based on parent, height = 28
-        self.addItem(item)
-        self.setItemWidget(item, song_widget)
-        self.saved = False
-        
-        #song_widget.buttonPlay.setDisabled(True)
-        song_widget.buttonPlay.clicked.connect(self.player.play_pause)
-        song_widget.buttonRepeat.clicked.connect(self.player.set_repeat)
-        song_widget.buttonDelete.setDisabled(True)
-        song_widget.buttonDelete.clicked.connect(self._delete_song_widget)
-    
-    def _delete_song_widget(self):
-        delete_index = self.currentRow()
-        if delete_index == self.player.current_track_num and self.player.state is not STOPED:
-            self.show_message_box(DELETE_PLAYING_WARNING, cancel=False)
-        elif self.show_message_box('Точно удалить?') == OK:
-                if delete_index < self.player.current_track_num:
-                    self.player.current_track_num -= 1
-                self.takeItem(delete_index)
-                # if self.count() < 1:
-                #     self.player.buttonSaveList.setDisabled(True)
-                self.set_saved(False)
-                    
     def add_songs(self, filenames=[], songs_info=[]):
         if songs_info:
             for info in songs_info:
@@ -247,7 +165,7 @@ class SongList(QtWidgets.QListWidget):
                                         fade_out=info.get('fade_out'),
                                         muted=info.get('muted'),
                                         )
-                self._add_song_widget(song_widget)
+                self.add_song_widget(song_widget)
         else:
             if not filenames:
                 filepaths = QtWidgets.QFileDialog.getOpenFileNames(self, 
@@ -256,43 +174,348 @@ class SongList(QtWidgets.QListWidget):
                                                         'Music Files (*.mp3 *.wav)',
                                                         )[0]
                 filenames = []
-                current_playback_filenames = self.get_playback_filenames()
-                print('Playback filenames:', current_playback_filenames)
+                current_playback_filenames = self.get_playback_dir_filenames()
+                #print('Playback filenames:', current_playback_filenames)
                 for filepath in filepaths:
                     filedir, filename = os.path.split(filepath)
                     filenames.append(filename)
                     if filename not in current_playback_filenames:
                         copyfile(filepath, os.path.join(self.playback_dir, filename))
-            
+        
             for song_filename in filenames:
                 song_file_path = os.path.join(self.playback_dir, song_filename)
                 song_name, sep, file_type = song_filename.rpartition('.')
-                print('FILE TYPE:', file_type)
+                #print('FILE TYPE:', file_type)
                 if file_type == 'mp3':
                     song_info = MP3(song_file_path).info
                 elif file_type == 'WAV' or file_type == 'wav':
                     song_info = WAVE(song_file_path).info
                 else:
-                    print('Unsupported sound file!')
+                    print('Unsupported sound file!')#TODO Сделать окно предупреждения
                 length = song_info.length
                 length = int(length * 1000) #convert to int milliseconds
-                song_widget = SongWidget(parent=self,
-                                         id=self._get_id(),
+                song_widget = SongWidget(parent=self.list,
+                                         id=self.get_id(),
                                          path=song_file_path,
                                          name=song_name,
                                          file_type=file_type,
                                          length=length,
                                          )
-                self._add_song_widget(song_widget)
-        self.set_saved(False)
-        self.player.playback_enable(True)
-        self.player.current_song = None
-        if hasattr(self.player, 'listSongs'):
-            self.player.change_song(0)
+                self.add_song_widget(song_widget)
+        if filenames:
+            self.set_saved(False)
+            self.player.playback_enable(True)
+        #self.player.current_song = None
+        # if hasattr(self.player, 'listSongs'):
+#             self.player.load(self.list.get_song_by_index(0))
     
+    def add_song_widget(self, song_widget):
+        item = QtWidgets.QListWidgetItem()
+        item.setSizeHint(QtCore.QSize(1, LIST_ITEM_HEIGHT)) #width based on parent, height = 28
+        self.list.addItem(item)
+        self.list.setItemWidget(item, song_widget)
+        self.saved = False
+    
+        #song_widget.buttonPlay.setDisabled(True)
+        song_widget.buttonPlay.clicked.connect(self.player.play_pause)
+        song_widget.buttonRepeat.clicked.connect(self.player.set_repeat)
+        song_widget.buttonDelete.setDisabled(True)
+        song_widget.buttonDelete.clicked.connect(self.delete_song_widget)
+
+    def delete_song_widget(self):
+        delete_index = self.list.currentRow()
+        if delete_index == self.playing_song_index and self.player.state is not STOPED:
+            self.show_message_box(DELETE_PLAYING_WARNING, cancel=False)
+        elif self.show_message_box('Точно удалить?') == OK:
+                if delete_index < self.playing_song_index:
+                    self.playing_song_index -= 1
+                self.list.takeItem(delete_index)
+                if self.list.count() < 1:
+                    self.player.playback_enable(False)
+                #     self.player.buttonSaveList.setDisabled(True)
+                self.set_saved(False)
+    
+    def save_list_name(self):
+        new_name = self.lineListHeader.text()
+        new_save_file_path = os.path.join(os.path.dirname(self.save_file_path),
+                                            new_name+SONG_LIST_EXTENSION)
+        new_save_file_path = os.path.abspath(new_save_file_path) 
+        old_save_file_path = self.save_file_path                                   
+        #print('OLD PATH:', self.save_file_path)
+        #print('NEW PATH:', new_save_file_path)
+        self.save_as(new_save_file_path)
+        os.remove(old_save_file_path)
+        rmtree(self.get_playback_dir_path(old_save_file_path))
+        self.normal_mode()
+        self.buttonListHeader.setText(new_name)
+        self.buttonListHeader.setToolTip(new_name)
+    
+    def save(self):
+        if not self.saved:
+            songs_info = []
+            for song in self.list.get_all_songs():
+                songs_info.append(self.list.get_song_info(song))
+            #print('Save file path:', self.save_file_path)
+            with open(self.save_file_path, 'w') as save_file:
+                json.dump(list(reversed(songs_info)), save_file, indent=4)
+            song_filenames = [os.path.basename(song_info.get('path')) for song_info in songs_info]
+            for filename in self.get_playback_dir_filenames():
+                if filename not in song_filenames:
+                    if self.show_message_box(SOURCE_DELETE_WARNING.format(filename.partition('.')[0])) == OK:
+                        os.remove(os.path.join(self.playback_dir, filename))#TODO Добавить кнопки Удалить все и Сохранить все или чекбокс Применить ко всем.
+            self.set_saved()
+            print('saved')
+        else:
+            print('not saved')
+    
+    def save_as(self, save_file_path=''):
+        if not save_file_path:
+            save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
+                                     os.path.join('.', DEFAULT_SAVE_DIR), 'SongList File (*.sl)')[0]
+        if save_file_path == self.save_file_path:
+            print('called SAVE')
+            self.save()
+        else:
+            music_dir_path = self.get_playback_dir_path(save_file_path)
+            if save_file_path:
+                songs_info = []
+                if os.path.exists(music_dir_path):
+                    rmtree(music_dir_path)
+                os.mkdir(music_dir_path)
+                self.playback_dir = music_dir_path
+                for song in self.list.get_all_songs():
+                    new_song_path = os.path.join(music_dir_path, song.name+'.'+song.file_type)
+                    copyfile(song.path, new_song_path)
+                    song.path = new_song_path
+                    songs_info.append(self.list.get_song_info(song))
+                with open(save_file_path, 'w') as save_file:
+                    json.dump(list(reversed(songs_info)), save_file, indent=4)
+                self.set_saved()
+        self.save_file_path = save_file_path
+        
+    def set_saved(self, saved=True):
+        self.saved = saved
+        if saved:
+            self.labelSaveSign.setText('')
+            list_name = os.path.basename(self.save_file_path).partition('.')[0]
+            #print('list name for button:', list_name)
+            self.buttonListHeader.setText(list_name)
+            self.buttonListHeader.setToolTip(list_name)
+            self.buttonSaveList.setDisabled(True)
+        else:
+            self.labelSaveSign.setText('*')
+            self.buttonSaveList.setEnabled(True)
+                  
+    def load(self, load_file_path=''):
+        if not self.saved:
+            if self.show_message_box(LOAD_WARNING) != OK:
+                return
+        if not load_file_path:
+            load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
+                                                    'Загрузка списка песен', 
+                                                    '.', 
+                                                    'SongList File (*.sl)',
+                                                    )[0]
+        if load_file_path:
+            #print('Load file path:', load_file_path)
+            with open(load_file_path, 'r') as load_file:
+                songs_info = json.load(load_file)
+            # if self.list.count() > 0:# Не помню, для чего
+#                 pass
+            self.clear()
+            self.player.eject()
+            if songs_info:
+                self.add_songs(songs_info=songs_info)
+                if hasattr(self.player, 'listSongs'):
+                    self.playing_song_index = 0
+                    self.playing_song = self.list.get_song_by_index(0)
+                    self.selected_song_index = 0
+                    self.list.setCurrentRow(0)
+                    self.player.load(self.playing_song)
+            self.save_file_path = load_file_path
+            self.playback_dir = self.get_playback_dir_path(load_file_path)
+            self.set_saved()
+            self.player.playback_enable()
+
+    def clear(self):
+        if not self.saved:
+            if self.show_message_box(CLEAR_WARNING) != OK:
+                return
+        self.player.playback_enable(False)
+        self.list.clear()
+        self.set_saved(True)
+
+    def delete(self):
+        pass
+        
+    def change_row(self, target):
+        print('CHANGE ROW')
+        if type(target) == int:
+            row = target
+            song = self.list.get_song_by_index(row)
+        else:
+            row = self.list.get_song_index(target)
+            song = target
+        prev_song = self.list.get_song_by_index(self.selected_song_index)
+        if prev_song:
+            prev_song.buttonDelete.setDisabled(True)
+        else:
+            print('prev_song widget not detected!')
+        self.selected_song_index = row
+        if self.list.currentRow() != row:
+            print('CURRENT ROW != selected index!!!')
+            self.list.setCurrentRow(row)
+        if song:
+            song.buttonDelete.setEnabled(True)
+            if song == self.playing_song:
+                self.player.buttonRepeat.setChecked(song.repeat)
+            if self.player.state is STOPED:
+                self.player.eject()
+                if hasattr(self.player, 'listSongs'):
+                    self.player.load(song)
+        else:
+            print('Song widget not detected!') 
+        if self.renamed_song:
+            self.renamed_song.normal_mode()
+        self.normal_mode()
+        
     def rename_song(self, list_item=None):
-        self.renamed_song = self.itemWidget(list_item)
+        self.renamed_song = self.list.itemWidget(list_item)
         self.renamed_song.rename()
+
+    def rename_mode(self):
+        self.buttonListHeader.hide()
+        self.lineListHeader.show()
+        self.lineListHeader.setText(self.buttonListHeader.text())
+        self.lineListHeader.selectAll()
+        self.lineListHeader.setFocus()
+
+    def normal_mode(self):
+        self.buttonListHeader.show()
+        self.lineListHeader.hide()
+        self.lineListHeader.clearFocus()
+        
+    def show_message_box(self, message, cancel=True):
+        message_box = QtWidgets.QMessageBox()
+        button_ok = QtWidgets.QMessageBox.Ok
+        button_cancel = QtWidgets.QMessageBox.Cancel
+        if cancel:
+            message_box.setStandardButtons(button_ok | button_cancel)
+        else:
+            message_box.setStandardButtons(button_ok)
+        message_box.setText(message)
+        return message_box.exec()
+        
+    def get_playback_dir_filenames(self):
+        return [f_name.strip() for f_name in os.listdir(self.playback_dir
+                                    ) if not f_name.startswith('.')]
+
+    def get_playback_dir_path(self, list_file_path):
+        dirname, filename = os.path.split(list_file_path)
+        return os.path.join(dirname, filename.partition('.')[0] + '_music')
+              
+    def get_id(self):   # TODO Переписать как генератор
+        id = self.id_source
+        self.id_source += 1
+        return id
+    
+    def is_empty(self):
+        return not self.list.count() > 0 or False
+            
+    def set_current_row(self, row):
+        self.list.setCurrentRow(row)
+        
+    def get_selected_song(self):
+        return self.list.get_song_by_index(self.selected_song_index)
+        
+    def get_song(self, direction=''):
+        song = None
+        if self.player.state == PLAYING or self.player.state == PAUSED:
+            song_index = self.playing_song_index
+        else:
+            song_index = self.selected_song_index
+            
+        if direction == 'previous':
+            in_list_range = song_index > 0
+            increment = -1
+            message = 'FIRST TRACK !'
+        elif direction == 'next':
+            in_list_range = song_index + 1 < self.list.count()
+            increment = 1
+            message = 'LAST TRACK !'
+        else:
+            in_list_range = True
+            increment = 0
+        
+        if in_list_range:
+            new_song_index = song_index + increment
+            self.change_row(new_song_index)
+            self.playing_song_index = new_song_index
+            self.playing_song = self.list.get_song_by_index(new_song_index)
+            song = self.playing_song
+        else:
+            print(message)
+        return song
+    
+    def get_previous_song(self):
+        previous_song = None
+        if self.playing_song_index > 0:
+            next_track_num = self.current_track_num - 1
+            self.listSongs.setCurrentRow(next_track_num)
+            self.change_song(next_track_num)
+            self._play()
+            self._pause()
+        else:
+            print('FIRST TRACK !')
+    
+    
+class SongList(QtWidgets.QListWidget):
+    def __init__(self, widget):
+        super().__init__()
+        self.widget = widget
+        
+        #GUI settings
+        self.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        self.setAcceptDrops(True)
+        self.dragEnabled()
+        self.setDragDropMode(QtWidgets.QListWidget.InternalMove)
+        #self.setSortingEnabled(True)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setStyleSheet("QListWidget::item:selected{background:yellow;}")
+        
+        self.currentRowChanged.connect(self.widget.change_row)
+        self.itemDoubleClicked.connect(self.widget.rename_song)
+        
+    def dragEnterEvent(self, event):
+        #print('List: ACCEPT!!')
+        #print('drag track num =', self.player.current_track_num)
+        #event.accept()
+        event.acceptProposedAction()
+        
+    def dropEvent(self, event):
+        print("List: DROP!!")
+        raw_drop_index = self.indexAt(event.pos()).row()
+        drop_indicator = self.dropIndicatorPosition()
+        from_index = self.currentRow()
+        if raw_drop_index > from_index:
+            drop_index = raw_drop_index + (drop_indicator - 2)
+        else:
+            drop_index = raw_drop_index + (drop_indicator - 1)
+        if drop_index != from_index:
+            playing_song_index = self.widget.playing_song_index
+            print('playing song index', playing_song_index)
+            if playing_song_index == from_index:
+                self.widget.playing_song_index = drop_index
+            elif from_index < playing_song_index and drop_index >= playing_song_index:
+                self.widget.playing_song_index -= 1
+            elif from_index > playing_song_index and drop_index <= playing_song_index:
+                self.widget.playing_song_index += 1
+            self.widget.set_saved(False)
+            print('drop indicator position:', self.dropIndicatorPosition())
+            print('from index', from_index)
+            print('drop index', drop_index)
+            print('playing_song_index =', self.widget.playing_song_index)
+            super().dropEvent(event)
         
     def get_all_songs(self, info=False):
         songs = []
@@ -331,143 +554,8 @@ class SongList(QtWidgets.QListWidget):
                     'muted': song.muted,
         }
         return song_info
-    
-    def get_playback_filenames(self):
-        return [f_name.strip() for f_name in os.listdir(self.playback_dir
-                                    ) if not f_name.startswith('.')]
-    
-    def get_playback_dir_path(self, list_file_path):
-        dirname, filename = os.path.split(list_file_path)
-        return os.path.join(dirname, filename.partition('.')[0] + '_music')
-            
-    def set_saved(self, saved=True):
-        self.saved = saved
-        if saved:
-            self.player.labelSaveSign.setText('')
-            list_name = os.path.basename(self.save_file_path).partition('.')[0]
-            print('list name for button:', list_name)
-            self.player.buttonSongListHeader.setText(list_name)
-            self.player.buttonSongListHeader.setToolTip(list_name)
-            self.player.buttonSaveList.setDisabled(True)
-        else:
-            self.player.labelSaveSign.setText('*')
-            self.player.buttonSaveList.setEnabled(True)
-                
-    def save(self):
-        if not self.saved:
-            songs_info = []
-            for song in self.get_all_songs():
-                songs_info.append(self.get_song_info(song))
-            #print('Save file path:', self.save_file_path)
-            with open(self.save_file_path, 'w') as save_file:
-                json.dump(list(reversed(songs_info)), save_file, indent=4)
-            song_filenames = [os.path.basename(song.get('path')) for song in songs_info]
-            for filename in self.get_playback_filenames():
-                if filename not in song_filenames:
-                    if self.show_message_box(SOURCE_DELETE_WARNING.format(filename.partition('.')[0])) == OK:
-                        os.remove(os.path.join(self.playback_dir, filename))#TODO Добавить кнопки Удалить все и Сохранить все или чекбокс Применить ко всем.
-            self.set_saved()
-            print('saved')
-        else:
-            print('not saved')       
         
-    def save_as(self, save_file_path=''):
-        if not save_file_path:
-            save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
-                                     os.path.join('.', DEFAULT_SAVE_DIR), 'SongList File (*.sl)')[0]
-        if save_file_path == self.save_file_path:
-            print('called SAVE')
-            self.save()
-        else:
-            music_dir_path = self.get_playback_dir_path(save_file_path)
-            print('NEW MUSIC DIR:', music_dir_path)
-            if save_file_path:
-                songs_info = []
-                if os.path.exists(music_dir_path):
-                    rmtree(music_dir_path)
-                os.mkdir(music_dir_path)
-                self.playback_dir = music_dir_path
-                for song in self.get_all_songs():
-                    new_song_path = os.path.join(music_dir_path, song.name+'.'+song.file_type)
-                    copyfile(song.path, new_song_path)
-                    print(f'copied from {song.path} to {new_song_path}')
-                    song.path = new_song_path
-                    songs_info.append(self.get_song_info(song))
-                with open(save_file_path, 'w') as save_file:
-                    print('save file opened', save_file)
-                    json.dump(list(reversed(songs_info)), save_file, indent=4)
-                self.set_saved()
-                new_list_name = os.path.basename(save_file_path).partition('.')[0]
-                self.player.buttonSongListHeader.setText(new_list_name)
-                self.player.buttonSongListHeader.setToolTip(new_list_name)
-        self.save_file_path = save_file_path
-                      
-    def load(self, load_file_path=''):
-        if not self.saved:
-            if self.show_message_box(LOAD_WARNING) != OK:
-                return
-        if not load_file_path:
-            load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
-                                                    'Загрузка списка песен', 
-                                                    '.', 
-                                                    'SongList File (*.sl)',
-                                                    )[0]
-        if load_file_path:
-            print('Load file path:', load_file_path)
-            with open(load_file_path, 'r') as load_file:
-                songs_info = json.load(load_file)
-            #if songs_info:
-            if self.count() > 0:
-                pass
-            self.clear()
-            self.player.current_song = None
-            if songs_info:
-                self.add_songs(songs_info=songs_info)
-                if hasattr(self.player, 'listSongs'):
-                    self.player.change_song(0)
-            self.save_file_path = load_file_path
-            self.playback_dir = self.get_playback_dir_path(load_file_path)
-            self.set_saved()
-            # else:
-#                 print('no songs_info !')
-
-    def clear(self):
-        if not self.saved:
-            if self.show_message_box(CLEAR_WARNING) != OK:
-                return
-        self.player.playback_enable(False)
-        super().clear()
-        self.set_saved(True)
-    
-    def rename_mode(self):
-        self.player.buttonSongListHeader.hide()
-        self.player.lineSongListHeader.show()
-        self.player.lineSongListHeader.setText(self.player.buttonSongListHeader.text())
-        self.player.lineSongListHeader.selectAll()
-        self.player.lineSongListHeader.setFocus()
-    
-    def save_list_name(self):
-        new_name = self.player.lineSongListHeader.text()
-        new_save_file_path = os.path.join(os.path.dirname(self.save_file_path),
-                                            new_name+SONG_LIST_EXTENSION)
-        new_save_file_path = os.path.abspath(new_save_file_path) 
-        old_save_file_path = self.save_file_path                                   
-        print('OLD PATH:', self.save_file_path)
-        print('NEW PATH:', new_save_file_path)
-        self.save_as(new_save_file_path)
-        os.remove(old_save_file_path)
-        rmtree(self.get_playback_dir_path(old_save_file_path))
-        self.normal_mode()
-        self.player.buttonSongListHeader.setText(new_name)
-        self.player.buttonSongListHeader.setToolTip(new_name)
-        
-    def normal_mode(self):
-        self.player.buttonSongListHeader.show()
-        self.player.lineSongListHeader.hide()
-        self.player.lineSongListHeader.clearFocus()
-        
-            
-        
+                    
 class ClickerPlayerApp(QtWidgets.QMainWindow):
     HIGH_VOL = 100
     MID_VOL = 50
@@ -504,22 +592,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.volume = self.MID_VOL
         self.state = STOPED
         
-        self.current_track_num = 10000
+        #self.current_track_num = 10000
         self.current_song = None
         
-        self.listSongs = SongList(self, self.options.get('last_playlist_path'))
+        self.listSongs = SongListWidget(self, self.options.get('last_playlist_path'))
         self.layoutSongList.addWidget(self.listSongs)
-        
-        self.lineSongListHeader.hide()
-        self.lineSongListHeader.returnPressed.connect(self.listSongs.save_list_name)
-        self.buttonSongListHeader.clicked.connect(self.listSongs.rename_mode)
-        self.buttonSongListHeader.setToolTip(self.buttonSongListHeader.text())
-        self.buttonAddTrack.clicked.connect(self.listSongs.add_songs)
-        
-        self.buttonSaveList.clicked.connect(self.listSongs.save)
-        self.buttonSaveListAs.clicked.connect(self.listSongs.save_as)
-        self.buttonLoadList.clicked.connect(self.listSongs.load)
-        self.buttonClearList.clicked.connect(self.listSongs.clear)
         
         self.buttonPrevious.clicked.connect(self.play_previous)
         self.buttonStop.clicked.connect(self._stop)
@@ -534,11 +611,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderPlaybackPos.sliderPressed.connect(self.deny_autopos)
         self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
         
-        first_song = self.listSongs.get_song_by_index(0)
-        if first_song:
-            self.change_song(0) 
+        if self.listSongs.is_empty():
+            self.playback_enable(False)
         else:
-            self.playback_enable(False) 
+            print('first song loaded:', self.listSongs.playing_song)
+            self.load(self.listSongs.playing_song) 
         
     def _play(self):
         mixer.music.play(start=self.start_pos / 1000)
@@ -547,7 +624,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPause.setChecked(False)
         self.current_song.buttonPlay.setText(PLAY_LABEL)
         self.current_song.buttonPlay.setChecked(True)
-        print('PLAYING...', self.current_track_num, self.current_song.name)
+        print('PLAYING...', self.listSongs.playing_song_index, self.current_song.name)
         self.allow_autopos = True
         Thread(target=self._update_playback_slider).start() 
            
@@ -568,6 +645,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.state = STOPED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
+        self.buttonRepeat.setChecked(self.listSongs.get_selected_song().repeat)
         self.sliderPlaybackPos.setValue(0)
         self.current_song.buttonPlay.setText(PLAY_LABEL)
         self.current_song.buttonPlay.setChecked(False)
@@ -579,9 +657,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             sender = self.sender().parent()
             if type(sender) == SongWidget:
                 if sender != self.current_song:
-                    self.change_song(self.listSongs.get_song_index(sender))
+                    self.listSongs.change_row(sender)
+                    self.eject()
+                    self.load(sender)
+                    # self.change_song(self.listSongs.get_song_index(sender))
             elif self.state == STOPED:
-                self.change_song(self.listSongs.currentRow())
+                self.eject()
+                self.load(self.listSongs.get_selected_song())
+                #self.change_song(self.listSongs.currentRow())
         if self.state == STOPED:
             #self.change_song(self.current_track_num)
             self._play()
@@ -595,29 +678,17 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, event=None):
-        if self.state == PLAYING or self.state == PAUSED:
-            current_track_num = self.current_track_num
-        else:
-            current_track_num = self.listSongs.currentRow()
-        if current_track_num + 1 < self.listSongs.count():
-            next_track_num = current_track_num + 1
-            self.listSongs.setCurrentRow(next_track_num)
-            self.change_song(next_track_num)
-            self.current_track_num = next_track_num
-            self._play()
-        else:
-            print('LAST TRACK !')  
-        print('NEXT: current track:', self.current_track_num)    
+        next_song = self.listSongs.get_song('next')
+        if next_song:
+            self.eject()
+            self.load(next_song)
+            self._play()   
     
     def play_previous(self, event=None):
-        if self.current_track_num > 0:
-            next_track_num = self.current_track_num - 1
-            self.listSongs.setCurrentRow(next_track_num)
-            self.change_song(next_track_num)
-            self._play()
-            self._pause()
-        else:
-            print('FIRST TRACK !')
+        previous_song = self.listSongs.get_song('previous')
+        if previous_song:
+            self.eject()
+            self.load(previous_song)
             
     def deny_autopos(self):
         self.allow_autopos = False
@@ -680,29 +751,51 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.sliderPlaybackPos.setValue(new_slider_pos)
             self.change_pos()
                      
-    def change_song(self, song_index):
-        print('CHANGE_SONG --')
-        # if song_index != self.current_track_num:
-        #     print('new song num')
+    # def change_song(self, song_index):
+#         print('CHANGE_SONG --')
+#         # if song_index != self.current_track_num:
+#         #     print('new song num')
+#         if self.current_song:
+#             self.current_song.normal_mode()
+#             self.current_song.buttonPlay.setText(PLAY_LABEL)
+#             self.current_song.buttonPlay.setChecked(False)
+#             self.current_song.buttonDelete.setDisabled(True)
+#             self.previous_row = self.listSongs.currentRow()
+#         self.listSongs.set_current_row(song_index)
+#         self.current_track_num = song_index
+#         self.current_song = self.listSongs.get_song_by_index(song_index)
+#         self._stop()
+#         mixer.music.load(self.current_song.path)
+#
+#         #self.current_song.buttonPlay.setDisabled(False)
+#         self.current_song.buttonDelete.setDisabled(False)
+#         self.buttonRepeat.setChecked(self.current_song.repeat)
+#         self.sliderPlaybackPos.setMaximum(self.current_song.length)
+#         self.start_pos = self.current_song.start_pos
+#         self.labelCurrentPos.setText(self.min_sec_from_ms(self.current_song.start_pos))
+#         self.labelEndPos.setText(self.min_sec_from_ms(self.current_song.end_pos))
+    
+    def load(self, song):
+        if song:
+            song.buttonDelete.setDisabled(False)
+            self.buttonRepeat.setChecked(song.repeat)
+            self.sliderPlaybackPos.setMaximum(song.length)
+            self.start_pos = song.start_pos
+            self.labelCurrentPos.setText(self.min_sec_from_ms(song.start_pos))
+            self.labelEndPos.setText(self.min_sec_from_ms(song.end_pos))
+            self.current_song = song
+            self._stop()
+            mixer.music.load(song.path)
+        else:
+            self.current_song = None
+    
+    def eject(self):
         if self.current_song:
             self.current_song.normal_mode()
             self.current_song.buttonPlay.setText(PLAY_LABEL)
             self.current_song.buttonPlay.setChecked(False)
             self.current_song.buttonDelete.setDisabled(True)
-            self.previous_row = self.listSongs.currentRow()
-        self.listSongs.setCurrentRow(song_index)
-        self.current_track_num = song_index
-        self.current_song = self.listSongs.get_song_by_index(song_index)
-        self._stop()
-        mixer.music.load(self.current_song.path)
-        
-        #self.current_song.buttonPlay.setDisabled(False)
-        self.current_song.buttonDelete.setDisabled(False)
-        self.buttonRepeat.setChecked(self.current_song.repeat)
-        self.sliderPlaybackPos.setMaximum(self.current_song.length)
-        self.start_pos = self.current_song.start_pos
-        self.labelCurrentPos.setText(self.min_sec_from_ms(self.current_song.start_pos))
-        self.labelEndPos.setText(self.min_sec_from_ms(self.current_song.end_pos))
+            self.current_song = None
                     
     def min_sec_from_ms(self, milliseconds):
         sec_float = milliseconds / 1000
@@ -718,7 +811,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         return result
     
     def set_repeat(self):
-        selected_song = self.listSongs.get_song_by_index(self.listSongs.currentRow())
+        selected_song = self.listSongs.get_selected_song()
         if self.sender() == selected_song.buttonRepeat:
             selected_song.repeat = not selected_song.repeat
             selected_song.buttonRepeat.setChecked(selected_song.repeat)
@@ -756,7 +849,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         else:
             print('MIN VOLUME!')
     
-    def playback_enable(self, state):
+    def playback_enable(self, state=True):
         self.buttonPrevious.setEnabled(state)
         self.buttonStop.setEnabled(state)
         self.buttonPlay.setEnabled(state)

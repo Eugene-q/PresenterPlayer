@@ -47,125 +47,13 @@
       <property name="spacing">
        <number>0</number>
       </property>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,1,0,0">
-        <property name="spacing">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="labelSaveSign">
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="buttonSongListHeader">
-          <property name="text">
-           <string>Список звукозаписей</string>
-          </property>
-          <property name="flat">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="lineSongListHeader">
-          <property name="focusPolicy">
-           <enum>Qt::NoFocus</enum>
-          </property>
-          <property name="text">
-           <string>Список звукозаписей</string>
-          </property>
-          <property name="frame">
-           <bool>false</bool>
-          </property>
-          <property name="clearButtonEnabled">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="horizontalSpacer_3">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item>
-         <widget class="QPushButton" name="buttonAddTrack">
-          <property name="text">
-           <string>Добавить</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
      </layout>
     </item>
     <item>
-     <layout class="QVBoxLayout" name="layoutControls" stretch="0,0,0,0,0">
+     <layout class="QVBoxLayout" name="layoutControls" stretch="0,0,0,0">
       <property name="sizeConstraint">
        <enum>QLayout::SetDefaultConstraint</enum>
       </property>
-      <item>
-       <layout class="QVBoxLayout" name="layputListControls">
-        <item>
-         <widget class="QLabel" name="labelListOperationsHeader">
-          <property name="text">
-           <string>Управление списком</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QGridLayout" name="layoutListOperations" rowstretch="0,0">
-          <item row="0" column="1">
-           <widget class="QPushButton" name="buttonSaveList">
-            <property name="text">
-             <string>Сохранить</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="2">
-           <widget class="QPushButton" name="buttonSaveListAs">
-            <property name="text">
-             <string>Сохранить как</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="2">
-           <widget class="QPushButton" name="buttonClearList">
-            <property name="text">
-             <string>Очистить</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QPushButton" name="buttonLoadList">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Загрузить</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
       <item>
        <layout class="QVBoxLayout" name="layoutSignals">
         <property name="spacing">
