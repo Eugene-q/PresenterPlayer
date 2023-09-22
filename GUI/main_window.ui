@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>700</width>
     <height>523</height>
    </rect>
   </property>
@@ -18,7 +18,7 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>800</width>
+    <width>700</width>
     <height>468</height>
    </size>
   </property>
@@ -41,181 +41,53 @@
      <height>0</height>
     </size>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="3,1">
+   <layout class="QVBoxLayout" name="verticalLayout_2">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
     <item>
-     <layout class="QVBoxLayout" name="layoutSongList">
+     <layout class="QHBoxLayout" name="layoutListPlayer" stretch="0,0">
       <property name="spacing">
        <number>0</number>
       </property>
-     </layout>
-    </item>
-    <item>
-     <layout class="QVBoxLayout" name="layoutControls" stretch="0,0,0,0">
       <property name="sizeConstraint">
        <enum>QLayout::SetDefaultConstraint</enum>
       </property>
       <item>
-       <layout class="QVBoxLayout" name="layoutSignals">
+       <layout class="QVBoxLayout" name="layoutSongList">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="layoutPlayer">
         <property name="spacing">
          <number>0</number>
         </property>
         <item>
-         <widget class="QLabel" name="labelSignalsHeader">
-          <property name="text">
-           <string>Сигналы</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="layoutSignalControls">
+         <layout class="QHBoxLayout" name="layoutButtonsAndVol">
           <property name="spacing">
            <number>0</number>
           </property>
           <item>
-           <widget class="QPushButton" name="buttonSignalType">
-            <property name="text">
-             <string>Тип
-сигнала</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <layout class="QVBoxLayout" name="layoutSignalVol">
-            <item>
-             <widget class="QLabel" name="labelSignalVol">
-              <property name="text">
-               <string>громкость</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSlider" name="sliderSignalVol">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <widget class="QPushButton" name="buttonSignalsOff">
-            <property name="text">
-             <string>Отключить
-сигналы</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <spacer name="verticalSpacer_2">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="layoutPlayer">
-        <item>
-         <widget class="QLabel" name="labelPlaybackHeader">
-          <property name="text">
-           <string>Воспроизведение</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="layoutButtonsAndVol">
-          <item>
-           <layout class="QGridLayout" name="layoutButtons">
-            <property name="leftMargin">
-             <number>0</number>
-            </property>
+           <layout class="QVBoxLayout" name="layoutButtons">
             <property name="spacing">
              <number>0</number>
             </property>
-            <item row="1" column="2">
-             <widget class="QPushButton" name="buttonPlay">
-              <property name="text">
-               <string>Play</string>
-              </property>
-              <property name="checkable">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="3">
-             <widget class="QPushButton" name="buttonNext">
-              <property name="text">
-               <string>Next</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QPushButton" name="buttonStop">
-              <property name="text">
-               <string>Stop</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QPushButton" name="buttonFadeIn">
-              <property name="text">
-               <string>FI</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="3">
-             <widget class="QPushButton" name="buttonFadeOut">
-              <property name="text">
-               <string>FO</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="1">
-             <widget class="QPushButton" name="buttonRepeat">
-              <property name="text">
-               <string>Rep</string>
-              </property>
-              <property name="checkable">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0">
-             <widget class="QPushButton" name="buttonPrevious">
-              <property name="text">
-               <string>Prev</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="2">
-             <widget class="QPushButton" name="buttonPause">
-              <property name="text">
-               <string>Pause</string>
-              </property>
-              <property name="checkable">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="2">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>15</number>
+            </property>
+            <item>
              <spacer name="verticalSpacer">
               <property name="orientation">
                <enum>Qt::Vertical</enum>
@@ -228,20 +100,72 @@
               </property>
              </spacer>
             </item>
+            <item>
+             <widget class="QPushButton" name="buttonPrevious">
+              <property name="text">
+               <string>Prev</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonStop">
+              <property name="text">
+               <string>Stop</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonPlay">
+              <property name="text">
+               <string>Play</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonPause">
+              <property name="text">
+               <string>Pause</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonNext">
+              <property name="text">
+               <string>Next</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonRepeat">
+              <property name="text">
+               <string>Rep</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonFadeOut">
+              <property name="text">
+               <string>FO</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonFadeIn">
+              <property name="text">
+               <string>FI</string>
+              </property>
+             </widget>
+            </item>
            </layout>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
           </item>
           <item>
            <layout class="QVBoxLayout" name="layoutVol">
@@ -249,7 +173,7 @@
              <number>0</number>
             </property>
             <property name="leftMargin">
-             <number>7</number>
+             <number>4</number>
             </property>
             <item>
              <widget class="QLabel" name="labelVol">
@@ -274,8 +198,31 @@
         </item>
        </layout>
       </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="layoutPlaybackRange">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="layoutPlaybackSlider">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>10</number>
+      </property>
+      <property name="rightMargin">
+       <number>10</number>
+      </property>
       <item>
-       <layout class="QHBoxLayout" name="layoutPlayPos">
+       <layout class="QVBoxLayout" name="layoutStartTime">
+        <property name="spacing">
+         <number>0</number>
+        </property>
         <item>
          <widget class="QLabel" name="labelCurrentPos">
           <property name="text">
@@ -284,29 +231,36 @@
          </widget>
         </item>
         <item>
-         <widget class="QSlider" name="sliderPlaybackPos">
-          <property name="maximum">
-           <number>180000</number>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="tickPosition">
-           <enum>QSlider::TicksBothSides</enum>
-          </property>
-          <property name="tickInterval">
-           <number>60000</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="labelEndPos">
+         <widget class="QLabel" name="labelCurrentPosMs">
           <property name="text">
-           <string>00:00</string>
+           <string>000</string>
           </property>
          </widget>
         </item>
        </layout>
+      </item>
+      <item>
+       <widget class="QSlider" name="sliderPlaybackPos">
+        <property name="maximum">
+         <number>180000</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="tickPosition">
+         <enum>QSlider::TicksBothSides</enum>
+        </property>
+        <property name="tickInterval">
+         <number>60000</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="labelEndPos">
+        <property name="text">
+         <string>00:00</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
