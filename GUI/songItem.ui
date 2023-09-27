@@ -142,6 +142,16 @@
     </widget>
    </item>
    <item>
+    <widget class="QPushButton" name="buttonMute">
+     <property name="text">
+      <string>M</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QPushButton" name="buttonDelete">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">

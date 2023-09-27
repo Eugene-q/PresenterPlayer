@@ -108,13 +108,6 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonStop">
-              <property name="text">
-               <string>Stop</string>
-              </property>
-             </widget>
-            </item>
-            <item>
              <widget class="QPushButton" name="buttonPlay">
               <property name="text">
                <string>Play</string>
@@ -131,6 +124,13 @@
               </property>
               <property name="checkable">
                <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonStop">
+              <property name="text">
+               <string>Stop</string>
               </property>
              </widget>
             </item>
@@ -162,6 +162,13 @@
              <widget class="QPushButton" name="buttonFadeIn">
               <property name="text">
                <string>FI</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonReset">
+              <property name="text">
+               <string>Reset</string>
               </property>
              </widget>
             </item>
