@@ -45,8 +45,8 @@ STOPED = 0
 PLAYING = 1
 PAUSED = 2
 PLAY_ONE = 0
-PLAY_ALL = 1
-REPEAT_ONE = 2
+REPEAT_ONE = 1
+PLAY_ALL = 2
 REPEAT_ALL = 3
     
 
@@ -407,13 +407,14 @@ class SongListWidget(QtWidgets.QWidget):
         self.set_saved(False)
         if muted_song.muted:
             muted_song.buttonPlay.setDisabled(True)
+            if muted_song == self.playing_song:
+                next_song = self.player.get_next_song()
+                if next_song:
+                    self.player.eject()
+                    self.player.load(next_song)
         else:
             muted_song.buttonPlay.setEnabled(True)
-        if muted_song == self.playing_song:
-            self.player.eject()
-            next_song = self.get_song('next')
-            self.player.load(next_song)
-
+        
     def rename_mode(self):
         self.buttonListHeader.hide()
         self.lineListHeader.show()
@@ -496,10 +497,12 @@ class SongListWidget(QtWidgets.QWidget):
             self.change_row(new_song_index)
             self.playing_song_index = new_song_index
             self.playing_song = self.list.get_song_by_index(new_song_index)
+            print('GET SONG --')
+            print('new_song_index:', self.playing_song_index)
             song = self.playing_song
         else:
             print(message)
-        return song
+        return song #возвращает None, если нет следующей или предыдущей песни
     
     def set_playing_song(self, song):
         if type(song) == int:
@@ -602,6 +605,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     MAX_VOL = 100
     MIN_VOL = 0
     VOLUME_STEP = 5
+    end_of_playback = QtCore.pyqtSignal()
+    
     def __init__(self,):
         super().__init__()
         uic.loadUi(MAIN_WINDOW_UI_PATH, self)
@@ -633,8 +638,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.volume = 0
         self.state = STOPED
         
-        #self.current_track_num = 10000
         self.current_song = None
+        
+        self.end_of_playback.connect(self.play_next)
         
         self.listSongs = SongListWidget(self, self.options.get('last_playlist_path'))
         self.layoutSongList.addWidget(self.listSongs)
@@ -680,7 +686,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.load(self.listSongs.playing_song) 
         
     def _play(self):
-        mixer.music.play(start=self.start_pos / 1000)
         self.state = PLAYING
         self.buttonPlay.setChecked(True)
         self.buttonPause.setChecked(False)
@@ -688,7 +693,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.current_song.buttonPlay.setChecked(True)
         print('PLAYING...', self.listSongs.playing_song_index, self.current_song.name)
         self.allow_autopos = True
-        Thread(target=self._update_playback_slider).start() 
+        mixer.music.play(start=self.start_pos / 1000)
+        self.change_pos(self.start_pos)
+        #Thread(target=self._update_playback_slider).start() 
            
     def _pause(self):
         self.start_pos = self.start_pos + mixer.music.get_pos()
@@ -723,7 +730,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     self.listSongs.set_playing_song(sender)
                     self.eject()
                     self.load(sender)
-            elif self.state == STOPED:
+            elif (self.state == STOPED and
+                    self.current_song != self.listSongs.get_selected_song()):
                 self.eject()
                 self.load(self.listSongs.get_selected_song())
         if self.state == STOPED:
@@ -738,13 +746,31 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, event=None):
-        next_song = self.listSongs.get_song('next')
-        while next_song and next_song.muted:
-            next_song = self.listSongs.get_song('next')
+        next_song = self.get_next_song()
         if next_song:
             self.eject()
             self.load(next_song)
-            self._play()   
+            self._play()
+        else:
+            self._stop()  
+    
+    def get_next_song(self):
+        next_song = None
+        if self.repeat_mode == REPEAT_ONE:
+            print('repeat one')
+            next_song = self.current_song
+        elif self.repeat_mode == PLAY_ALL or self.repeat_mode == REPEAT_ALL:
+            print('play/repeat all')
+            song = self.listSongs.get_song('next')
+            while song and song.muted:
+                song = self.listSongs.get_song('next')
+            if song:
+                next_song = song
+            elif self.repeat_mode == REPEAT_ALL:
+                self.listSongs.set_playing_song(0)
+                self.listSongs.set_current_row(0)
+                next_song = self.listSongs.playing_song
+        return next_song
     
     def play_previous(self, event=None):
         previous_song = self.listSongs.get_song('previous')
@@ -763,14 +789,16 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song = self.current_song
         current_pos = mixer.music.get_pos()
         playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
-        while (mixer.music.get_busy() and 
+        to_end_delta = self.current_song.end_pos - playback_pos #дублировано для проверки перехода
+        while (self.state == PLAYING and#(mixer.music.get_busy() and 
                self.allow_autopos and
-               #track_num == self.current_track_num
                song == self.current_song and
-               self.current_song.end_pos >= playback_pos
+               current_pos >= 0 and
+               to_end_delta >= 0
                ):
             current_pos = mixer.music.get_pos()
             playback_pos = self.start_pos + current_pos
+            to_end_delta = self.current_song.end_pos - playback_pos
             if playback_pos % 250 < 20:
                 self.sliderPlaybackPos.setValue(playback_pos)
             if playback_pos % 1000 < 20:
@@ -781,29 +809,18 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 else:
                     self.labelCurrentPosMs.hide()
             sleep(0.01)
-        print('autoupdate off')
-        print('mixer buzy:', mixer.music.get_busy())
-        print('autopos:', self.allow_autopos)
-        print('current song:', song == self.current_song)
-        print('end >= playback:', self.current_song.end_pos >= playback_pos)
-        if (self.current_song.end_pos - playback_pos < 50 and 
+        print('update slider off')
+        #print('mixer buzy:', mixer.music.get_busy())
+        #print('autopos:', self.allow_autopos)
+        #print('current song:', song == self.current_song)
+        #print('current mixer pos', current_pos)
+        #print('mixer pos:', mixer.music.get_pos())
+        if ((current_pos < 0 or to_end_delta < 35) and  #Проверка перехода
                     self.state == PLAYING):
-            #self._stop()
-            if self.repeat_mode == REPEAT_ONE:
-                self._play()
-            elif self.repeat_mode == PLAY_ALL:
-                self.play_next()
-            elif self.repeat_mode == REPEAT_ALL:
-                if self.listSongs.get_song('next'):
-                    self.play_next()
-                else:
-                    self.eject()
-                    self.listSongs.set_playing_song(0)
-                    self.listSongs.set_current_row(0)
-                    self.load(self.listSongs.playing_song)
-                    self._play()
-        else:
-            print('end - playback =', self.current_song.end_pos - playback_pos)
+            self.end_of_playback.emit()
+            #self.play_next()
+        #else:
+            #print('end - playback =', self.current_song.end_pos - playback_pos)
                        
     def change_pos(self, pos=None):
         print('CHANGE_POS --')
@@ -820,7 +837,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderPlaybackPos.setValue(slider_pos)
         if mixer.music.get_busy():
             print('mixer.get_busy --')
-            mixer.music.stop()
+            #mixer.music.stop().    ##### ОТКЛЮЧЕНО ЭКСПЕРИМЕНТАЛЬНО. Вырубалось обновление слайдера в этот момент
             mixer.music.play(start=slider_pos / 1000)
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
@@ -828,10 +845,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.labelCurrentPosMs.show()
             self.labelCurrentPosMs.setText(current_millisec)
             self.high_acuracy = False
-        self.allow_autopos = True
+        if not self.allow_autopos:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
+            self.allow_autopos = True
         if active_threads() < 2:
-            Thread(target=self._update_playback_slider).start() 
-        print('changing position to', slider_pos / 1000) 
+            Thread(target=self._update_playback_slider).start()
+        print('changing position to', self.start_pos) 
     
     def change_range(self, pbrange=None):
         if not pbrange:
@@ -878,6 +896,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 song.buttonDelete.setEnabled(True)
                 self.buttonPlay.setEnabled(True)
                 self.buttonPause.setEnabled(True)
+                self.buttonStop.setEnabled(True)
                 self.buttonRepeat.setChecked(song.repeat)
                 self.sliderPlaybackPos.setMaximum(song.length)
                 self.sliderPlaybackRange.setMaximum(song.length)
@@ -894,6 +913,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def eject(self):
         if self.current_song:
+            self._stop()
             self.current_song.normal_mode()
             self.current_song.buttonPlay.setText(PLAY_LABEL)
             self.current_song.buttonPlay.setChecked(False)
@@ -901,6 +921,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.current_song = None
             self.buttonPlay.setDisabled(True)
             self.buttonPause.setDisabled(True)
+            self.buttonStop.setDisabled(True)
                     
     def min_sec_from_ms(self, milliseconds, show_ms=False):
         sec_float = milliseconds / 1000
