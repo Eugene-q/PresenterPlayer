@@ -372,33 +372,23 @@ class SongListWidget(QtWidgets.QWidget):
             row = target
         self.list.setCurrentRow(row)
     
-    def change_row(self, row): # ТРЕБУЕТ РЕФАКТОРИНГА!
+    def change_row(self, row):
         print()
         print('CHANGE ROW')
-        print('sender:', self.sender())
         song = self.list.get_song_by_index(row)
         self.selected_song_index = row
         print('SELECTED SONG INDEX:', self.selected_song_index)
         if song:
-            print('song')
-            #song.buttonDelete.setEnabled(True)
             if self.player.state is STOPED:
-                print('stoped')
                 if song == self.playing_song:
-                    print('playing song')
                     if song.repeat:
-                        print('repeat')
                         self.player.switch_repeat_to(REPEAT_ONE)
                     else:
                         if hasattr(self.player, 'listSongs'):
                             self.player.switch_repeat_to(self.player.prev_repeat_mode)
                 else:
-                    print('not playing song')
                     if hasattr(self.player, 'listSongs'):
                         self.player.switch_repeat_to(self.player.prev_repeat_mode)
-                #self.player.eject()
-                # if hasattr(self.player, 'listSongs'):
-#                     self.player.load(song)
         else:
             print('Song widget not detected!') 
         if self.renamed_song:
@@ -713,11 +703,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPause.setChecked(False)
         self.current_song.buttonPlay.setText(PLAY_LABEL)
         self.current_song.buttonPlay.setChecked(True)
-        print('PLAYING...', self.listSongs.playing_song_index, self.current_song.name)
+        
+        #self.change_pos(self.start_pos)
         self.allow_autopos = True
         mixer.music.play(start=self.start_pos / 1000)
-        self.change_pos(self.start_pos)
-        #Thread(target=self._update_playback_slider).start() 
+        self.start_playback_slider()
+        print('PLAYING...', self.listSongs.playing_song_index, self.current_song.name)
            
     def _pause(self):
         self.start_pos = self.start_pos + mixer.music.get_pos()
@@ -730,7 +721,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('PAUSED...') 
                 
     def _stop(self, event=None):
-        print('_STOP -- sender:', self.sender())
+        print('_STOP -- ')
         self.start_pos = self.current_song.start_pos
         mixer.music.stop()
         self.state = STOPED
@@ -743,7 +734,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('STOPED...')
         
     def play_pause(self, event=None):
-        #pdb.set_trace()
         if self.sender():
             sender = self.sender().parent()
             if type(sender) == SongWidget:
@@ -758,8 +748,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.load(self.listSongs.get_selected_song())
         if self.state == STOPED:
             self._play()
-            if self.sender() and self.sender().objectName() == 'buttonPause':
-                print('sender = pause')
+            if self.sender() and self.sender() == self.buttonPause:
                 self._pause()
         else:
             if self.state == PAUSED or not mixer.music.get_busy():
@@ -840,6 +829,13 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if ((current_pos < 0 or to_end_delta < 35) and  #Проверка перехода
                     self.state == PLAYING):
             self.end_of_playback.emit()
+    
+    def start_playback_slider(self):
+        while not active_threads() < 2:
+            print('playback_slider buzy!')
+            sleep(0.01)
+        print('START PLAYBACK SLIDER')
+        Thread(target=self._update_playback_slider).start()
                        
     def change_pos(self, pos=None):
         print('CHANGE_POS --')
@@ -858,6 +854,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             print('mixer.get_busy --')
             #mixer.music.stop().    ##### ОТКЛЮЧЕНО ЭКСПЕРИМЕНТАЛЬНО. Вырубалось обновление слайдера в этот момент
             mixer.music.play(start=slider_pos / 1000)
+            self.start_playback_slider()
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
         if self.high_acuracy:
@@ -866,8 +863,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.high_acuracy = False
         if not self.allow_autopos:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
             self.allow_autopos = True
-        if active_threads() < 2:
-            Thread(target=self._update_playback_slider).start()
         print('changing position to', self.start_pos) 
     
     def change_range(self, pbrange=None):
@@ -900,7 +895,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.high_acuracy = True
             self.deny_autopos()
             self.sliderPlaybackPos.setValue(new_slider_pos)
-            self.change_pos() 
+            self.change_pos()
         
     def step_fforward(self):
         new_slider_pos = self.sliderPlaybackPos.value() + CHANGE_POS_STEP
@@ -925,7 +920,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.current_song = song
                 self.change_range((song.start_pos, song.end_pos))
                 self.vol_change(song.volume)
-                #self._stop()
                 mixer.music.load(song.path)
             else:
                self.current_song = None 
@@ -938,7 +932,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.current_song.normal_mode()
             self.current_song.buttonPlay.setText(PLAY_LABEL)
             self.current_song.buttonPlay.setChecked(False)
-            #self.current_song.buttonDelete.setDisabled(True)
             self.current_song = None
             self.buttonPlay.setDisabled(True)
             self.buttonPause.setDisabled(True)
@@ -992,7 +985,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def switch_repeat_to(self, mode):
         mode_settings = self.REPEAT_MODES.get(mode)
-        print(f'switched from {self.prev_repeat_mode} to {mode}')
         self.repeat_mode = mode
         self.buttonRepeat.setChecked(mode_settings.get('checked'))
         self.buttonRepeat.setText(mode_settings.get('text'))
