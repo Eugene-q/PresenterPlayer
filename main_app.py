@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import pdb
 import json
 import sys
 import os
@@ -11,7 +12,7 @@ from mutagen.mp3 import MP3
 from mutagen.wave import WAVE
 from shutil import copyfile, rmtree
 from time import sleep
-from threading import Thread
+from threading import Thread, get_ident
 from threading import active_count as active_threads
 
 VALID_SYMBOL_CODES = (tuple(chr(s) for s in range(1040, 1104)) + 
@@ -230,10 +231,8 @@ class SongListWidget(QtWidgets.QWidget):
         self.list.setItemWidget(item, song_widget)
         self.saved = False
     
-        #song_widget.buttonPlay.setDisabled(True)
         song_widget.buttonPlay.clicked.connect(self.player.play_pause)
         song_widget.buttonRepeat.clicked.connect(self.player.set_repeat)
-        song_widget.buttonDelete.setDisabled(True)
         song_widget.buttonDelete.clicked.connect(self.delete_song_widget)
         song_widget.buttonMute.clicked.connect(self.mute_song)
         song_widget.buttonMute.setChecked(song_widget.muted)
@@ -241,7 +240,8 @@ class SongListWidget(QtWidgets.QWidget):
             song_widget.buttonPlay.setDisabled(True)
 
     def delete_song_widget(self):
-        delete_index = self.list.currentRow()
+        #delete_index = self.list.currentRow()
+        delete_index = self.list.get_song_index(self.sender().parent())
         if delete_index == self.playing_song_index and self.player.state is not STOPED:
             self.show_message_box(DELETE_PLAYING_WARNING, cancel=False)
         elif self.show_message_box('Точно удалить?') == OK:
@@ -364,37 +364,41 @@ class SongListWidget(QtWidgets.QWidget):
 
     def delete(self):
         pass
-        
-    def change_row(self, target):
-        print('CHANGE ROW')
-        if type(target) == int:
+
+    def set_row(self, target):
+        if type(target) != int:
+            row = self.list.get_song_index(target)    
+        else:
             row = target
-            song = self.list.get_song_by_index(row)
-        else:
-            row = self.list.get_song_index(target)
-            song = target
-        prev_song = self.get_selected_song()
-        if prev_song:
-            prev_song.buttonDelete.setDisabled(True)
-        else:
-            print('prev_song widget not detected!')
+        self.list.setCurrentRow(row)
+    
+    def change_row(self, row): # ТРЕБУЕТ РЕФАКТОРИНГА!
+        print()
+        print('CHANGE ROW')
+        print('sender:', self.sender())
+        song = self.list.get_song_by_index(row)
         self.selected_song_index = row
         print('SELECTED SONG INDEX:', self.selected_song_index)
-        if self.list.currentRow() != row:
-            #print('CURRENT ROW != selected index!!!')
-            self.list.setCurrentRow(row)
         if song:
-            song.buttonDelete.setEnabled(True)
+            print('song')
+            #song.buttonDelete.setEnabled(True)
             if self.player.state is STOPED:
+                print('stoped')
                 if song == self.playing_song:
+                    print('playing song')
                     if song.repeat:
+                        print('repeat')
                         self.player.switch_repeat_to(REPEAT_ONE)
+                    else:
+                        if hasattr(self.player, 'listSongs'):
+                            self.player.switch_repeat_to(self.player.prev_repeat_mode)
                 else:
+                    print('not playing song')
                     if hasattr(self.player, 'listSongs'):
                         self.player.switch_repeat_to(self.player.prev_repeat_mode)
-                self.player.eject()
-                if hasattr(self.player, 'listSongs'):
-                    self.player.load(song)
+                #self.player.eject()
+                # if hasattr(self.player, 'listSongs'):
+#                     self.player.load(song)
         else:
             print('Song widget not detected!') 
         if self.renamed_song:
@@ -498,7 +502,7 @@ class SongListWidget(QtWidgets.QWidget):
         
         if in_list_range:
             new_song_index = song_index + increment
-            self.change_row(new_song_index)
+            self.set_row(new_song_index)
             self.playing_song_index = new_song_index
             self.playing_song = self.list.get_song_by_index(new_song_index)
             print('GET SONG --')
@@ -726,7 +730,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('PAUSED...') 
                 
     def _stop(self, event=None):
-        print('_STOP --')
+        print('_STOP -- sender:', self.sender())
         self.start_pos = self.current_song.start_pos
         mixer.music.stop()
         self.state = STOPED
@@ -739,11 +743,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('STOPED...')
         
     def play_pause(self, event=None):
+        #pdb.set_trace()
         if self.sender():
             sender = self.sender().parent()
             if type(sender) == SongWidget:
                 if sender != self.current_song:
-                    self.listSongs.change_row(sender)
+                    self.listSongs.set_row(sender)
                     self.listSongs.set_playing_song(sender)
                     self.eject()
                     self.load(sender)
@@ -835,9 +840,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if ((current_pos < 0 or to_end_delta < 35) and  #Проверка перехода
                     self.state == PLAYING):
             self.end_of_playback.emit()
-            #self.play_next()
-        #else:
-            #print('end - playback =', self.current_song.end_pos - playback_pos)
                        
     def change_pos(self, pos=None):
         print('CHANGE_POS --')
@@ -871,6 +873,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def change_range(self, pbrange=None):
         if not pbrange:
             start_pos, end_pos = self.sliderPlaybackRange.value()
+            self.listSongs.set_saved(False)
         else:
             start_pos, end_pos = pbrange
             self.sliderPlaybackRange.setValue(pbrange)
@@ -922,7 +925,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.current_song = song
                 self.change_range((song.start_pos, song.end_pos))
                 self.vol_change(song.volume)
-                self._stop()
+                #self._stop()
                 mixer.music.load(song.path)
             else:
                self.current_song = None 
@@ -935,7 +938,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.current_song.normal_mode()
             self.current_song.buttonPlay.setText(PLAY_LABEL)
             self.current_song.buttonPlay.setChecked(False)
-            self.current_song.buttonDelete.setDisabled(True)
+            #self.current_song.buttonDelete.setDisabled(True)
             self.current_song = None
             self.buttonPlay.setDisabled(True)
             self.buttonPause.setDisabled(True)
@@ -955,17 +958,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         return result
     
     def set_repeat(self):
-        selected_song = self.listSongs.get_selected_song()
-        if self.sender() == selected_song.buttonRepeat:
-            selected_song.repeat = not selected_song.repeat
-            selected_song.buttonRepeat.setChecked(selected_song.repeat)
-            if selected_song == self.current_song:
-                if selected_song.repeat:
-                    self.switch_repeat_to(REPEAT_ONE)
-                else:
-                    self.switch_repeat_to(self.prev_repeat_mode)
-            self.listSongs.set_saved(False)
-        elif self.sender() == self.buttonRepeat:
+        #selected_song = self.listSongs.get_selected_song()
+        if self.sender() == self.buttonRepeat:
             self.listSongs.set_saved(False)
             self.repeat_mode = (self.repeat_mode + 1) % 4
             self.prev_repeat_mode = self.repeat_mode
@@ -986,14 +980,20 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.current_song.buttonRepeat.setChecked(False)
                 self.switch_repeat_to(REPEAT_ALL)
         else:
-            sender = self.sender()
-            sender.setChecked(not sender.isChecked())
+            repeated_song = self.sender().parent()
+            repeated_song.repeat = not repeated_song.repeat
+            repeated_song.buttonRepeat.setChecked(repeated_song.repeat)
+            if repeated_song == self.current_song:
+                if repeated_song.repeat:
+                    self.switch_repeat_to(REPEAT_ONE)
+                else:
+                    self.switch_repeat_to(self.prev_repeat_mode)
+            self.listSongs.set_saved(False)
     
     def switch_repeat_to(self, mode):
         mode_settings = self.REPEAT_MODES.get(mode)
         print(f'switched from {self.prev_repeat_mode} to {mode}')
         self.repeat_mode = mode
-        print('CHECKED =', mode_settings.get('checked'))
         self.buttonRepeat.setChecked(mode_settings.get('checked'))
         self.buttonRepeat.setText(mode_settings.get('text'))
     
