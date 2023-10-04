@@ -25,11 +25,12 @@ MAIN_WINDOW_UI_PATH = 'GUI/main_window.ui'
 mixer.init()
 DEFAULT_PLAYBACK_DIR = 'song_lists/Новый список воспроизведения_music/'
 DEFAULT_SAVE_DIR = 'song_lists/'
-DEFAULT_SONGLIST_NAME = 'Новый список воспроизведения.sl'
 SONG_LIST_EXTENSION = '.sl'
+DEFAULT_SONGLIST_NAME = 'Новый список воспроизведения'
 
 OPTIONS_FILE_PATH = 'assets/options.json'
-DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, DEFAULT_SONGLIST_NAME), 
+DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, 
+                                            DEFAULT_SONGLIST_NAME + SONG_LIST_EXTENSION), 
                 }
 
 CLEAR_WARNING = 'Все несохранённые изменения будут утеряны! Очистить список?'
@@ -39,6 +40,7 @@ SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, н
 Если удалить файл, вы, возможно, не сможете восстановить его.
 Если файл оставить, вы потом сможете снова добавить его в список\n
 Cancel - оставить файл. Ок - удалить '''
+LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
 
 CHANGE_POS_STEP = 250
 
@@ -149,7 +151,7 @@ class SongListWidget(QtWidgets.QWidget):
             os.mkdir(DEFAULT_SAVE_DIR)
         self.save_file_path = ''
         if not os.path.exists(initial_save_file_path):
-            self.save_as(DEFAULT_SONGLIST_NAME)
+            self.save_as(DEFAULT_SAVE_DIR + DEFAULT_SONGLIST_NAME + SONG_LIST_EXTENSION)
         else:
             self.load(initial_save_file_path)
         #self.playing_num = 0
@@ -220,9 +222,10 @@ class SongListWidget(QtWidgets.QWidget):
         if filenames:
             self.set_saved(False)
             self.player.enable(True)
-        #self.player.current_song = None
-        # if hasattr(self.player, 'listSongs'):
-        # self.player.load(self.list.get_song_by_index(0))
+        self.player.current_song = None
+        if hasattr(self.player, 'listSongs'):
+            self.player.load(self.list.get_song_by_index(0))
+            self.set_row(0)
     
     def add_song_widget(self, song_widget):
         item = QtWidgets.QListWidgetItem()
@@ -295,21 +298,21 @@ class SongListWidget(QtWidgets.QWidget):
             self.save()
         else:
             music_dir_path = self.get_playback_dir_path(save_file_path)
-            if save_file_path:
-                songs_info = []
-                if os.path.exists(music_dir_path):
-                    rmtree(music_dir_path)
-                os.mkdir(music_dir_path)
-                self.playback_dir = music_dir_path
-                for song in self.list.get_all_songs():
-                    new_song_path = os.path.join(music_dir_path, song.name+'.'+song.file_type)
-                    copyfile(song.path, new_song_path)
-                    song.path = new_song_path
-                    songs_info.append(self.list.get_song_info(song))
-                with open(save_file_path, 'w') as save_file:
-                    json.dump(list(reversed(songs_info)), save_file, indent=4)
-                self.set_saved()
-        self.save_file_path = save_file_path
+            #if save_file_path:
+            songs_info = []
+            if os.path.exists(music_dir_path):
+                rmtree(music_dir_path)
+            os.mkdir(music_dir_path)
+            self.playback_dir = music_dir_path
+            for song in self.list.get_all_songs():
+                new_song_path = os.path.join(music_dir_path, song.name+'.'+song.file_type)
+                copyfile(song.path, new_song_path)
+                song.path = new_song_path
+                songs_info.append(self.list.get_song_info(song))
+            with open(save_file_path, 'w') as save_file:
+                json.dump(list(reversed(songs_info)), save_file, indent=4)
+            self.save_file_path = save_file_path
+            self.set_saved()
         
     def set_saved(self, saved=True):
         self.saved = saved
@@ -343,16 +346,17 @@ class SongListWidget(QtWidgets.QWidget):
             self.player.eject()
             if songs_info:
                 self.add_songs(songs_info=songs_info)
+                self.playing_song_index = 0
+                self.playing_song = self.list.get_song_by_index(0)
+                self.selected_song_index = 0
+                self.list.setCurrentRow(0)
                 if hasattr(self.player, 'listSongs'):
-                    self.playing_song_index = 0
-                    self.playing_song = self.list.get_song_by_index(0)
-                    self.selected_song_index = 0
-                    self.list.setCurrentRow(0)
                     self.player.load(self.playing_song)
+                    self.player.enable()
             self.save_file_path = load_file_path
             self.playback_dir = self.get_playback_dir_path(load_file_path)
             self.set_saved()
-            self.player.enable()
+            
 
     def clear(self):
         if not self.saved:
@@ -363,7 +367,23 @@ class SongListWidget(QtWidgets.QWidget):
         self.set_saved(True)
 
     def delete(self):
-        pass
+        if self.show_message_box(LIST_DELETE_WARNING) == OK:
+            os.remove(self.save_file_path)
+            rmtree(self.get_playback_dir_path(self.save_file_path))
+            save_name = DEFAULT_SONGLIST_NAME
+            while os.path.exists(DEFAULT_SAVE_DIR + save_name + SONG_LIST_EXTENSION):
+                save_name += '_копия'
+            self.save_file_path = DEFAULT_SAVE_DIR + save_name + SONG_LIST_EXTENSION
+            music_dir_path = self.get_playback_dir_path(self.save_file_path)
+            if os.path.exists(music_dir_path):
+                rmtree(music_dir_path)
+            os.mkdir(music_dir_path)
+            self.playback_dir = music_dir_path
+            self.clear()
+            self.set_saved(False)
+            self.save()
+            
+            
 
     def set_row(self, target):
         if type(target) != int:
@@ -653,11 +673,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.end_of_playback.connect(self.play_next)
         
-        self.listSongs = SongListWidget(self, self.options.get('last_playlist_path'))
-        self.layoutSongList.addWidget(self.listSongs)
-        self.repeat_mode = self.listSongs.repeat
-        self.prev_repeat_mode = self.repeat_mode
-        
         self.buttonPrevious.clicked.connect(self.play_previous)
         self.buttonStop.clicked.connect(self._stop)
         self.buttonPlay.clicked.connect(self.play_pause)
@@ -690,6 +705,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.layoutPlaybackRange.addWidget(self.buttonSetEnd)
         self.buttonSetStart.clicked.connect(self.set_range)
         self.buttonSetEnd.clicked.connect(self.set_range)
+        
+        self.listSongs = SongListWidget(self, self.options.get('last_playlist_path'))
+        self.layoutSongList.addWidget(self.listSongs)
+        self.repeat_mode = self.listSongs.repeat
+        self.prev_repeat_mode = self.repeat_mode
         
         if self.listSongs.is_empty():
             self.enable(False)
@@ -800,7 +820,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song = self.current_song
         current_pos = mixer.music.get_pos()
         playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
-        to_end_delta = self.current_song.end_pos - playback_pos #дублировано для проверки перехода
+        to_end_delta = song.end_pos - playback_pos #дублировано для проверки перехода
         while (self.state == PLAYING and#(mixer.music.get_busy() and 
                self.allow_autopos and
                song == self.current_song and
@@ -809,7 +829,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                ):
             current_pos = mixer.music.get_pos()
             playback_pos = self.start_pos + current_pos
-            to_end_delta = self.current_song.end_pos - playback_pos
+            to_end_delta = song.end_pos - playback_pos
             if playback_pos % 250 < 20:
                 self.sliderPlaybackPos.setValue(playback_pos)
             if playback_pos % 1000 < 20:
@@ -1027,6 +1047,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.buttonPrevious.setEnabled(state)
             self.buttonNext.setEnabled(state)
             self.buttonRepeat.setEnabled(state)
+            self.buttonReset.setEnabled(state)
+            self.sliderVol.setEnabled(state)
+            self.sliderPlaybackPos.setEnabled(state)
+            self.sliderPlaybackRange.setEnabled(state)
+            self.buttonSetStart.setEnabled(state)
+            self.buttonSetEnd.setEnabled(state)
             
     def keyPressEvent(self, event):
         print(event.key())
