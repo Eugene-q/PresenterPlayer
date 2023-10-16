@@ -782,6 +782,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 
     def _stop(self, event=None):
         print('_STOP -- ')
+        if (self.state == STOPED and
+                self.list.song(self.list.playing) != self.list.song(self.list.selected)):
+            self.eject()
+            self.load(self.list.song(self.list.selected))
         self.start_pos =  self.list.song(self.list.playing).start_pos
         mixer.music.stop()
         self.state = STOPED
@@ -798,6 +802,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             sender = self.sender().parent()
             if type(sender) == SongWidget:
                 if sender !=  self.list.song(self.list.playing):
+                    self._stop()
                     self.eject()
                     self.list.set_row(sender, playing=True)
                     self.load(sender)
@@ -856,12 +861,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def _update_playback_slider(self, song, current_pos, playback_pos, to_end_delta):
         print('UPDATE_PLAYBACK SLIDER --')
-        #track_num = self.current_track_num
-        # song =  self.list.song(self.list.playing)
-        # fade_volume = 0
-        # current_pos = mixer.music.get_pos()
-        # playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
-        # to_end_delta = song.end_pos - playback_pos #дублировано для проверки перехода
         while (self.state == PLAYING and#(mixer.music.get_busy() and 
                self.allow_autopos and
                song ==  self.list.song(self.list.playing) and
@@ -895,12 +894,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def _update_volume_automation(self, song, playback_pos):
         print('VOLUME AUTOMATION --')
         fade_volume = 0
-        while (#self.state == PLAYING and#(mixer.music.get_busy() and 
-               self.allow_autopos# and
-               # song ==  self.list.song(self.list.playing) and
-#                current_pos >= 0 and
-#                to_end_delta >= 0
-               ):
+        while (self.allow_autopos):
             current_pos = mixer.music.get_pos()
             playback_pos = self.start_pos + current_pos
             #to_end_delta = song.end_pos - playback_pos
@@ -1053,7 +1047,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def eject(self):
         #if  self.list.song(self.list.playing):
-        self._stop()
+        #self._stop()
         self.list.song(self.list.playing).normal_mode()
         self.list.song(self.list.playing).buttonPlay.setText(PLAY_LABEL)
         self.list.song(self.list.playing).buttonPlay.setChecked(False)
@@ -1241,6 +1235,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.options['last_playlist_path'] = self.list.save_file_path
         with open(OPTIONS_FILE_PATH, 'w', encoding='utf-8') as options_file:
             json.dump(self.options, options_file, indent=4)
+        self.deny_autopos()
         event.accept()
     
     def qlist_info(self):
