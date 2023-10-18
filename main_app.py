@@ -526,7 +526,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.set_row(new_song_index)
             self.playing = new_song_index
             #self.playing_song = self.list.get_song_by_index(new_song_index)
-            print('GET SONG --')
+            print('List -- GET SONG --')
             print('new_song_index:', self.playing)
             song = self.song(self.playing)
         else:
@@ -760,11 +760,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.load(self.list.song(self.list.playing)) 
         
     def _play(self):
+        song = self.list.song(self.list.playing)
         self.state = PLAYING
         self.buttonPlay.setChecked(True)
         self.buttonPause.setChecked(False)
-        self.list.song(self.list.playing).buttonPlay.setText(PLAY_LABEL)
-        self.list.song(self.list.playing).buttonPlay.setChecked(True)
+        song.buttonPlay.setText(PLAY_LABEL)
+        song.buttonPlay.setChecked(True)
         
         self.allow_automations_update()
         mixer.music.play(start=self.start_pos / 1000)
@@ -772,7 +773,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.start_playback_update()
         self.start_volume_update()
         mixer.music.unpause()
-        print('PLAYING...', self.list.playing,  self.list.song(self.list.playing).name)
+        print('PLAYING...', self.list.playing,  song.name)
            
     def _pause(self):
         self.start_pos = self.start_pos + mixer.music.get_pos()
@@ -786,19 +787,21 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 
     def _stop(self, event=None):
         print('_STOP -- ')
-        if (self.state == STOPED and
+        song = self.list.song(self.list.playing)
+        if (self.state == STOPED and # ПЕРЕНЕСТИ !! Вызывать при выборе песни в режиме STOPED
                 self.list.song(self.list.playing) != self.list.song(self.list.selected)):
             self.eject()
             self.load(self.list.song(self.list.selected))
-        self.start_pos =  self.list.song(self.list.playing).start_pos
+            self.list.set_row(self.list.song(self.list.selected), playing=True)
+        self.start_pos =  song.start_pos
         mixer.music.stop()
         self.state = STOPED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
         self.sliderPlaybackPos.setValue(0)
-        self.list.song(self.list.playing).buttonPlay.setText(PLAY_LABEL)
-        self.list.song(self.list.playing).buttonPlay.setChecked(False)
-        self.change_pos( self.list.song(self.list.playing).start_pos)
+        song.buttonPlay.setText(PLAY_LABEL)
+        song.buttonPlay.setChecked(False)
+        self.change_pos(song.start_pos)
         print('STOPED...')
         
     def play_pause(self, event=None):
@@ -825,6 +828,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, event=None):
+        self._stop()
         self.eject()
         next_song = self.get_next_song()
         if next_song:
@@ -854,6 +858,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         return next_song
     
     def play_previous(self, event=None):
+        self._stop()
         self.eject()
         previous_song = self.list.get_song('previous')
         while previous_song and previous_song.muted:
@@ -942,8 +947,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def start_playback_update(self):
         # if self.playback_update_thread:
-#             if self.playback_update_thread.is_alive():
-#                 self.allow_automations_update(playback=False, volume=None)
+             #if self.playback_update_thread.is_alive():
+                 #self.allow_automations_update(playback=False, volume=None)
         busy_count = 0
         if self.playback_update_thread:
             while self.playback_update_thread.is_alive():#not active_threads() < 2:
@@ -995,7 +1000,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if not self.allow_playback_update:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
             self.allow_automations_update(playback=True, volume=None)
         if self.state == PLAYING:#mixer.music.get_busy():
-            print('CHANGE_POS: mixer.get_busy')
+            print('CHANGE_POS: Playing mode - start playing and playback update')
             #mixer.music.stop().    ##### ОТКЛЮЧЕНО ЭКСПЕРИМЕНТАЛЬНО. Вырубалось обновление слайдера в этот момент
             mixer.music.play(start=slider_pos / 1000)
             self.start_playback_update()
@@ -1008,20 +1013,21 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('CHANGE_POS: changed to', self.start_pos) 
     
     def change_range(self, pbrange=None):
-        if not pbrange:
+        song = self.list.song(self.list.playing)
+        if not pbrange:  #slider released
             start_pos, end_pos = self.sliderPlaybackRange.value()
             self.list.set_saved(False)
-        else:
+        else:       #button set range
             start_pos, end_pos = pbrange
             self.sliderPlaybackRange.setValue(pbrange)
-        self.list.song(self.list.playing).start_pos = start_pos
-        self.list.song(self.list.playing).end_pos = end_pos
+        song.start_pos = start_pos
+        song.end_pos = end_pos
         self.labelEndPos.setText(self.min_sec_from_ms(end_pos))
         if self.sliderPlaybackPos.value() < start_pos:
             self.change_pos(start_pos)
         elif self.sliderPlaybackPos.value() > end_pos:
             self.change_pos(end_pos)
-        self.change_fade_range(self.list.song(self.list.playing).fade_range)
+        self.change_fade_range(song.fade_range)
     
     def set_range(self):
         start_pos, end_pos = self.sliderPlaybackRange.value()
@@ -1054,7 +1060,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             if not song.muted:
                 print('loaded: ', song.name[:20])
                 #print('start pos:', song.start_pos)
-                #pdb.set_trace()
                 song.buttonDelete.setEnabled(True)
                 self.buttonPlay.setEnabled(True)
                 self.buttonPause.setEnabled(True)
@@ -1065,13 +1070,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.sliderPlaybackRange.setMaximum(song.length)
                 self.sliderFadeRange.setMaximum(song.length)
                 #self.sliderPlaybackRange.setValue((song.start_pos, song.end_pos))
-                self.list.set_row(song, playing=True) #раскомментировано для загрузки песни при нажатии stop
+                #self.list.set_row(song, playing=True) #раскомментировано для загрузки песни при нажатии stop: перенесено в stop
+                #pdb.set_trace()
                 self.change_range((song.start_pos, song.end_pos))
                 if song.faded:
                     self.show_fading()
                 #self.change_fade_range(song.fade_range)
                 self.start_pos = song.start_pos
-                self.change_pos(self.start_pos)
+                #self.change_pos(self.start_pos) #change_pos вызывается из change_range, если playback_pos < start_pos
                 self.song_vol_change(song.volume, move_slider=True)
                 mixer.music.load(song.path)
             else:
@@ -1082,9 +1088,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def eject(self):
         #if  self.list.song(self.list.playing):
         #self._stop()
-        self.list.song(self.list.playing).normal_mode()
-        self.list.song(self.list.playing).buttonPlay.setText(PLAY_LABEL)
-        self.list.song(self.list.playing).buttonPlay.setChecked(False)
+        song = self.list.song(self.list.playing)
+        song.normal_mode()
+        song.buttonPlay.setText(PLAY_LABEL)
+        song.buttonPlay.setChecked(False)
         # self.list.song(self.list.playing) = None
         self.show_fading(False)
         self.enable(False, just_playback=True)
@@ -1147,10 +1154,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.apply_volume()
             
     def song_vol_change(self, vol, move_slider=False):
-        print('song vol changed to', vol)
-        self.song_volume = vol
-        if move_slider:
+        print('SONG VOLUME CHANGE: changed to', vol)
+        if move_slider: #слайдер вызывает этот же метод при перемещении, если его позиция изменилась
             self.sliderSongVol.setValue(self.song_volume)
+        self.song_volume = vol
         self.apply_volume()
         
     def song_vol_write(self,):
@@ -1182,13 +1189,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('VOLUME:', self.master_volume)
     
     def change_fade_range(self, fade_range=None):
+        song = self.list.song(self.list.playing)
         if not fade_range:     #slider released
             fadein_pos, fadeout_pos = self.sliderFadeRange.value()
             self.list.set_saved(False)
-        else:               #set_volume_range
+        else:               #set_fade_range
             fadein_pos, fadeout_pos = fade_range
-        self.list.song(self.list.playing).set_fading((fadein_pos, fadeout_pos))
-        self.sliderFadeRange.setValue(self.list.song(self.list.playing).fade_range)
+        song.set_fading((fadein_pos, fadeout_pos))
+        self.sliderFadeRange.setValue(song.fade_range)
         self.fade_raitos = self.get_fade_raitos()
     
     def set_fade_range(self):
