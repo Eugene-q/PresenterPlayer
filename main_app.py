@@ -129,6 +129,8 @@ class SongWidget(QtWidgets.QWidget):
             fade_in = self.start_pos
         if fade_out > self.end_pos:
             fade_out = self.end_pos
+        if fade_in > fade_out:
+            fade_in = fade_out
         self.faded = (fade_in > self.start_pos or
                      fade_out < self.end_pos) or False
         self.fade_range = (fade_in, fade_out)
@@ -422,6 +424,9 @@ class SongListWidget(QtWidgets.QWidget):
                     else:
                         self.player.switch_repeat_to(self.player.prev_repeat_mode)
                 else:
+                    self.playing = row
+                    self.player.eject()
+                    self.player.load(self.song(self.playing))
                     self.player.switch_repeat_to(self.player.prev_repeat_mode)
         else:
             print('Song widget not detected!') 
@@ -788,11 +793,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def _stop(self, event=None):
         print('_STOP -- ')
         song = self.list.song(self.list.playing)
-        if (self.state == STOPED and # ПЕРЕНЕСТИ !! Вызывать при выборе песни в режиме STOPED
-                self.list.song(self.list.playing) != self.list.song(self.list.selected)):
-            self.eject()
-            self.load(self.list.song(self.list.selected))
-            self.list.set_row(self.list.song(self.list.selected), playing=True)
         self.start_pos =  song.start_pos
         mixer.music.stop()
         self.state = STOPED
@@ -1014,12 +1014,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def change_range(self, pbrange=None):
         song = self.list.song(self.list.playing)
+        fade_in, fade_out = song.fade_range
         if not pbrange:  #slider released
             start_pos, end_pos = self.sliderPlaybackRange.value()
             self.list.set_saved(False)
         else:       #button set range
             start_pos, end_pos = pbrange
             self.sliderPlaybackRange.setValue(pbrange)
+        fade_in_delta = fade_in - song.start_pos
+        fade_out_delta = fade_out - song.end_pos
         song.start_pos = start_pos
         song.end_pos = end_pos
         self.labelEndPos.setText(self.min_sec_from_ms(end_pos))
@@ -1027,7 +1030,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.change_pos(start_pos)
         elif self.sliderPlaybackPos.value() > end_pos:
             self.change_pos(end_pos)
-        self.change_fade_range(song.fade_range)
+        if fade_in_delta:
+            fade_in = song.start_pos + fade_in_delta
+        if fade_out_delta:
+            fade_out = song.end_pos + fade_out_delta
+        self.change_fade_range((fade_in, fade_out))
     
     def set_range(self):
         start_pos, end_pos = self.sliderPlaybackRange.value()
@@ -1213,9 +1220,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderFadeRange.setValue((fadein_pos, fadeout_pos))
         self.change_fade_range((fadein_pos, fadeout_pos))
         
-    def fade_shift(self, playback_range):
-        pass
-    
     def get_fade_raitos(self):
         song = self.list.song(self.list.playing)
         fade_in, fade_out = song.fade_range
