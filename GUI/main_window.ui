@@ -84,7 +84,11 @@
             <item>
              <widget class="QPushButton" name="buttonOptions">
               <property name="text">
-               <string>Options</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/options.png</normaloff>:/player/images/imageonline/options.png</iconset>
               </property>
              </widget>
             </item>
@@ -102,16 +106,30 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonPrevious">
+             <widget class="QToolButton" name="buttonPrevious">
               <property name="text">
-               <string>Prev</string>
+               <string>...</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/rew.png</normaloff>:/player/images/imageonline/rew.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="buttonPlay">
               <property name="text">
-               <string>Play</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/play.png</normaloff>:/player/images/imageonline/play.png</iconset>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -121,7 +139,11 @@
             <item>
              <widget class="QPushButton" name="buttonPause">
               <property name="text">
-               <string>Pause</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/pause.png</normaloff>:/player/images/imageonline/pause.png</iconset>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -131,21 +153,33 @@
             <item>
              <widget class="QPushButton" name="buttonStop">
               <property name="text">
-               <string>Stop</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/stop.png</normaloff>:/player/images/imageonline/stop.png</iconset>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="buttonNext">
               <property name="text">
-               <string>Next</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/next.png</normaloff>:/player/images/imageonline/next.png</iconset>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="buttonRepeat">
               <property name="text">
-               <string>Rep</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/repeat.png</normaloff>:/player/images/imageonline/repeat.png</iconset>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -155,7 +189,11 @@
             <item>
              <widget class="QPushButton" name="buttonFading">
               <property name="text">
-               <string>Fade</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/fade.png</normaloff>:/player/images/imageonline/fade.png</iconset>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -165,7 +203,11 @@
             <item>
              <widget class="QPushButton" name="buttonReset">
               <property name="text">
-               <string>Reset</string>
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="../assets/icons.qrc">
+                <normaloff>:/player/images/imageonline/reset.png</normaloff>:/player/images/imageonline/reset.png</iconset>
               </property>
              </widget>
             </item>
@@ -305,6 +347,8 @@
    </layout>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="../assets/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

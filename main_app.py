@@ -6,6 +6,7 @@ import sys
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
+import assets.icons
 from pygame import mixer
 from superqt import QRangeSlider
 from mutagen.mp3 import MP3
@@ -70,7 +71,6 @@ class OptionsDialog(QtWidgets.QDialog):
         super().__init__()
         
         uic.loadUi(OPTIONS_DIALOG_UI_PATH, self)
-        self.setModal(True)
         
         self.player = player
         self.set = DEFAULT_OPTIONS
@@ -713,6 +713,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                          QtCore.Qt.Key_Up: self.vol_up, 
                          QtCore.Qt.Key_Down: self.vol_down,
                          QtCore.Qt.Key_B: self.play_previous,
+                         1048: self.play_previous,
                          QtCore.Qt.Key_Left: self.step_rewind, 
                          QtCore.Qt.Key_Right: self.step_fforward,
                          QtCore.Qt.Key_Z: self.qlist_info,
@@ -916,11 +917,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def play_previous(self, event=None):
         self.play_signal()
         self._stop()
-        self.eject()
         previous_song = self.list.get_song('previous')
         while previous_song and previous_song.muted:
-            previous_song = self.list.get_song('previous')   
-        self.load(previous_song)
+            previous_song = self.list.get_song('previous')
+        if previous_song:
+            self.eject()   
+            self.load(previous_song)
     
     def deny_playback_automation(self): #Для отключения обновления слайдером
         self.allow_automations_update(playback=False, volume=None)
