@@ -82,13 +82,25 @@
              <number>15</number>
             </property>
             <item>
-             <widget class="QPushButton" name="buttonOptions">
+             <widget class="QToolButton" name="buttonOptions">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/options.png</normaloff>:/player/images/imageonline/options.png</iconset>
+                <normaloff>:/player/icons/options.png</normaloff>:/player/icons/options.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
              </widget>
             </item>
@@ -112,7 +124,7 @@
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/rew.png</normaloff>:/player/images/imageonline/rew.png</iconset>
+                <normaloff>:/player/icons/rew.png</normaloff>:/player/icons/rew.png</iconset>
               </property>
               <property name="iconSize">
                <size>
@@ -123,13 +135,25 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonPlay">
+             <widget class="QToolButton" name="buttonPlay">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/play.png</normaloff>:/player/images/imageonline/play.png</iconset>
+                <normaloff>:/player/icons/play.png</normaloff>:/player/icons/play.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -137,13 +161,25 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonPause">
+             <widget class="QToolButton" name="buttonPause">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/pause.png</normaloff>:/player/images/imageonline/pause.png</iconset>
+                <normaloff>:/player/icons/pause.png</normaloff>:/player/icons/pause.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -151,35 +187,71 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonStop">
+             <widget class="QToolButton" name="buttonStop">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/stop.png</normaloff>:/player/images/imageonline/stop.png</iconset>
+                <normaloff>:/player/icons/stop.png</normaloff>:/player/icons/stop.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonNext">
+             <widget class="QToolButton" name="buttonNext">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/next.png</normaloff>:/player/images/imageonline/next.png</iconset>
+                <normaloff>:/player/icons/next.png</normaloff>:/player/icons/next.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonRepeat">
+             <widget class="QToolButton" name="buttonRepeat">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/repeat.png</normaloff>:/player/images/imageonline/repeat.png</iconset>
+                <normaloff>:/player/icons/dont_repeat.png</normaloff>:/player/icons/dont_repeat.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -187,13 +259,25 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonFading">
+             <widget class="QToolButton" name="buttonFading">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/fade.png</normaloff>:/player/images/imageonline/fade.png</iconset>
+                <normaloff>:/player/icons/mixer_faders.png</normaloff>:/player/icons/mixer_faders.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
               <property name="checkable">
                <bool>true</bool>
@@ -201,13 +285,25 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="buttonReset">
+             <widget class="QToolButton" name="buttonReset">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string/>
               </property>
               <property name="icon">
                <iconset resource="../assets/icons.qrc">
-                <normaloff>:/player/images/imageonline/reset.png</normaloff>:/player/images/imageonline/reset.png</iconset>
+                <normaloff>:/player/icons/reset.png</normaloff>:/player/icons/reset.png</iconset>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>32</width>
+                <height>32</height>
+               </size>
               </property>
              </widget>
             </item>

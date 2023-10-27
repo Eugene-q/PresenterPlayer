@@ -688,19 +688,23 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     MIN_VOL = 0
     VOLUME_STEP = 5
     end_of_playback = QtCore.pyqtSignal()
-    REPEAT_MODES = {PLAY_ONE: {'checked': False,
-                               'text': 'Play one',
-                              },
-                    REPEAT_ONE: {'checked': True,
-                                 'text': 'Repeat one',
-                              },
-                    PLAY_ALL: {'checked': False,
-                               'text': 'Play all',
-                              },
-                    REPEAT_ALL: {'checked': True,
-                                 'text': 'Repeat all',
-                              },
-                   }
+    # REPEAT_MODES = {PLAY_ONE: {'checked': False,
+#                                'text': 'Play one',
+#                                'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/dont_repeat_one.png')),
+#                               },
+#                     REPEAT_ONE: {'checked': True,
+#                                  'text': 'Repeat one',
+#                                  'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/repeat_one.png')),
+#                               },
+#                     PLAY_ALL: {'checked': False,
+#                                'text': 'Play all',
+#                                'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/dont_repeat.png')),
+#                               },
+#                     REPEAT_ALL: {'checked': True,
+#                                  'text': 'Repeat all',
+#                                  'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/repeat.png')),
+#                               },
+#                    }
     
     def __init__(self,):
         super().__init__()
@@ -718,7 +722,23 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                          QtCore.Qt.Key_Right: self.step_fforward,
                          QtCore.Qt.Key_Z: self.qlist_info,
                          }
-                         
+        self.REPEAT_MODES = {PLAY_ONE: {'checked': False,
+                                   'text': 'Play one',
+                                   'icon':  QtGui.QIcon(QtGui.QPixmap(':player/icons/dont_repeat_one.png')),
+                                  },
+                        REPEAT_ONE: {'checked': True,
+                                     'text': 'Repeat one',
+                                     'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/icons/repeat_one.png')),
+                                  },
+                        PLAY_ALL: {'checked': False,
+                                   'text': 'Play all',
+                                   'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/icons/dont_repeat.png')),
+                                  },
+                        REPEAT_ALL: {'checked': True,
+                                     'text': 'Repeat all',
+                                     'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/icons/repeat.png')),
+                                  },
+                       }                 
         self.save_dir = DEFAULT_SAVE_DIR
             
         self.start_pos = 0
@@ -748,7 +768,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonNext.clicked.connect(self.play_next)
         
         self.buttonRepeat.clicked.connect(self.set_repeat)
-        self.buttonRepeat.setText('Play All')
+        self.switch_repeat_to(PLAY_ALL)
+        #self.buttonRepeat.setText('Play All')
         
         self.buttonFading.clicked.connect(self.show_fading)
         
@@ -1212,7 +1233,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         mode_settings = self.REPEAT_MODES.get(mode)
         self.repeat_mode = mode
         self.buttonRepeat.setChecked(mode_settings.get('checked'))
-        self.buttonRepeat.setText(mode_settings.get('text'))
+        #self.buttonRepeat.setText(mode_settings.get('text'))
+        print(mode_settings.get('icon'))
+        self.buttonRepeat.setIcon(mode_settings.get('icon'))
     
     def master_vol_change(self, vol):
         self.master_volume = vol
