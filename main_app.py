@@ -87,7 +87,7 @@ class OptionsDialog(QtWidgets.QDialog):
                 self.set = json.load(options_file)
                 if not self.set:
                     self.set = DEFAULT_OPTIONS
-        self.player.signals_volume = self.set.get('signals_volume') * 100
+        self.player.signals_volume = self.set.get('signals_volume')
         self.player.signals_enabled = self.set.get('enable_signals')
         
     def save(self):
@@ -101,7 +101,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.hide()
         
     def cancel(self):
-        self.sliderSignalsVol.setValue(self.player.signals_volume)
+        self.sliderSignalsVol.setValue(int(self.player.signals_volume * 100))
         self.checkBoxEnableSignals.setChecked(self.player.signals_enabled)
         self.hide()
     
@@ -188,7 +188,7 @@ class SongWidget(QtWidgets.QWidget):
         self.faded = (fade_in > self.start_pos or
                      fade_out < self.end_pos) or False
         self.fade_range = (fade_in, fade_out)
-        print('SET FADING', self.name[:10], 'faded:', self.faded, self.fade_range)
+        #print('SET FADING', self.name[:10], 'faded:', self.faded, self.fade_range)
         
 
 class SongListWidget(QtWidgets.QWidget):
@@ -688,23 +688,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     MIN_VOL = 0
     VOLUME_STEP = 5
     end_of_playback = QtCore.pyqtSignal()
-    # REPEAT_MODES = {PLAY_ONE: {'checked': False,
-#                                'text': 'Play one',
-#                                'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/dont_repeat_one.png')),
-#                               },
-#                     REPEAT_ONE: {'checked': True,
-#                                  'text': 'Repeat one',
-#                                  'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/repeat_one.png')),
-#                               },
-#                     PLAY_ALL: {'checked': False,
-#                                'text': 'Play all',
-#                                'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/dont_repeat.png')),
-#                               },
-#                     REPEAT_ALL: {'checked': True,
-#                                  'text': 'Repeat all',
-#                                  'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/repeat.png')),
-#                               },
-#                    }
     
     def __init__(self,):
         super().__init__()
@@ -907,9 +890,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def play_next(self, event=None):
         self.play_signal()
         self._stop()
-        self.eject()
         next_song = self.get_next_song()
         if next_song:
+            self.eject()
             self.load(next_song)
             if self.sender() == self:
                 self._play()  
@@ -980,11 +963,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             sleep(0.01)
         print('playback automation off')
         #self.deny_autopos()
-        print('mixer buzy:', mixer.music.get_busy())
-        print('allow update:', self.allow_playback_update)
-        print('current song:', song ==  self.list.song(self.list.playing))
-        print('current mixer pos', current_pos)
-        print('mixer pos:', mixer.music.get_pos())
+        #print('mixer buzy:', mixer.music.get_busy())
+        #print('allow update:', self.allow_playback_update)
+        #print('current song:', song ==  self.list.song(self.list.playing))
+        #print('current mixer pos', current_pos)
+        #print('mixer pos:', mixer.music.get_pos())
         if ((current_pos < 0 or to_end_delta < 35) and  #Проверка перехода
                     self.state == PLAYING):
             self.allow_automations_update(volume=False)
@@ -1234,7 +1217,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.repeat_mode = mode
         self.buttonRepeat.setChecked(mode_settings.get('checked'))
         #self.buttonRepeat.setText(mode_settings.get('text'))
-        print(mode_settings.get('icon'))
         self.buttonRepeat.setIcon(mode_settings.get('icon'))
     
     def master_vol_change(self, vol):
