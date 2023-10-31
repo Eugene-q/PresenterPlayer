@@ -16,6 +16,7 @@ from time import sleep
 from threading import Thread, get_ident
 from threading import active_count as active_threads
 
+#pyrcc5 -o icons.py icons.qrc
 VALID_SYMBOL_CODES = (tuple(chr(s) for s in range(1040, 1104)) + 
                         tuple(chr(s) for s in range(128)) + ('ё', 'Ё'))
 
@@ -60,8 +61,8 @@ REPEAT_ALL = 3
 
 OK = 1024
 
-PLAY_LABEL = 'P'
-PAUSED_LABEL = 'Paused'
+# PLAY_LABEL = 'P'
+# PAUSED_LABEL = 'Paused'
 
 LIST_ITEM_HEIGHT = 28
 
@@ -692,6 +693,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def __init__(self,):
         super().__init__()
         uic.loadUi(MAIN_WINDOW_UI_PATH, self)
+        #self.setStyleSheet("#centralwidget{background-color:green}")
         
         self.controls = {QtCore.Qt.Key_Escape: self.play_next,
                          QtCore.Qt.Key_Shift: self.play_next,
@@ -705,6 +707,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                          QtCore.Qt.Key_Right: self.step_fforward,
                          QtCore.Qt.Key_Z: self.qlist_info,
                          }
+        self.PLAY_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/play.png'))
+        self.PAUSED_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/pause.png'))
+        
         self.REPEAT_MODES = {PLAY_ONE: {'checked': False,
                                    'text': 'Play one',
                                    'icon':  QtGui.QIcon(QtGui.QPixmap(':player/icons/dont_repeat_one.png')),
@@ -826,7 +831,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.state = PLAYING
         self.buttonPlay.setChecked(True)
         self.buttonPause.setChecked(False)
-        song.buttonPlay.setText(PLAY_LABEL)
+        song.buttonPlay.setIcon(self.PLAY_ICON)
         song.buttonPlay.setChecked(True)
         
         self.allow_automations_update()
@@ -838,14 +843,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('PLAYING...', self.list.playing,  song.name)
            
     def _pause(self):
+        song = self.list.song(self.list.playing)
         self.play_signal()
         self.start_pos = self.start_pos + mixer.music.get_pos()
         mixer.music.stop()
         self.state = PAUSED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(True)
-        self.list.song(self.list.playing).buttonPlay.setText(PAUSED_LABEL)
-        self.list.song(self.list.playing).buttonPlay.setChecked(True)
+        song.buttonPlay.setIcon(self.PAUSED_ICON)
+        song.buttonPlay.setChecked(True)
         print('PAUSED...') 
                 
     def _stop(self, event=None):
@@ -858,7 +864,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
         self.sliderPlaybackPos.setValue(0)
-        song.buttonPlay.setText(PLAY_LABEL)
+        song.buttonPlay.setIcon(self.PLAY_ICON)
         song.buttonPlay.setChecked(False)
         self.change_pos(song.start_pos)
         print('STOPED...')
@@ -1160,7 +1166,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #self._stop()
         song = self.list.song(self.list.playing)
         song.normal_mode()
-        song.buttonPlay.setText(PLAY_LABEL)
+        song.buttonPlay.setIcon(self.PLAY_ICON)
         song.buttonPlay.setChecked(False)
         # self.list.song(self.list.playing) = None
         self.show_fading(False)
@@ -1216,7 +1222,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         mode_settings = self.REPEAT_MODES.get(mode)
         self.repeat_mode = mode
         self.buttonRepeat.setChecked(mode_settings.get('checked'))
-        #self.buttonRepeat.setText(mode_settings.get('text'))
         self.buttonRepeat.setIcon(mode_settings.get('icon'))
     
     def master_vol_change(self, vol):

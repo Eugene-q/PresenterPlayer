@@ -82,6 +82,22 @@
              <number>15</number>
             </property>
             <item>
+             <spacer name="verticalSpacer_3">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>12</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
              <widget class="QToolButton" name="buttonOptions">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -119,10 +135,13 @@ background-color: DodgerBlue;
               <property name="orientation">
                <enum>Qt::Vertical</enum>
               </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
               <property name="sizeHint" stdset="0">
                <size>
                 <width>20</width>
-                <height>40</height>
+                <height>15</height>
                </size>
               </property>
              </spacer>
@@ -294,6 +313,22 @@ background-color: DodgerBlue;
              </widget>
             </item>
             <item>
+             <spacer name="verticalSpacer_4">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>5</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
              <widget class="QToolButton" name="buttonRepeat">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -398,6 +433,19 @@ background-color: DodgerBlue;
               </property>
              </widget>
             </item>
+            <item>
+             <spacer name="verticalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
            </layout>
           </item>
           <item>
@@ -413,7 +461,7 @@ background-color: DodgerBlue;
               <item>
                <widget class="QLabel" name="label_2">
                 <property name="text">
-                 <string>Song</string>
+                 <string>S</string>
                 </property>
                </widget>
               </item>
@@ -437,7 +485,7 @@ background-color: DodgerBlue;
               <item>
                <widget class="QLabel" name="label_3">
                 <property name="text">
-                 <string>Master</string>
+                 <string>M</string>
                 </property>
                </widget>
               </item>
