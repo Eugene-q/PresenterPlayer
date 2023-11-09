@@ -365,7 +365,7 @@ background-color: DodgerBlue;
              </widget>
             </item>
             <item>
-             <widget class="QToolButton" name="buttonFading">
+             <widget class="QToolButton" name="buttonAutomations">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>

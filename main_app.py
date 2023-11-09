@@ -200,6 +200,7 @@ class SongListWidget(QtWidgets.QWidget):
         uic.loadUi(SONG_LIST_UI_PATH, self)
         self.list = SongList(self)
         self.layoutSongList.addWidget(self.list)
+        self.layoutSongList.layoutBottomMargin = 0
         
         self.lineListHeader.hide()
         self.lineListHeader.returnPressed.connect(self.save_list_name)
@@ -709,6 +710,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                          }
         self.PLAY_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/play.png'))
         self.PAUSED_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/pause.png'))
+        self.START_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/start.png'))
+        self.END_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/end.png'))
+        self.FADEIN_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/fadein.png'))
+        self.FADEOUT_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/fadeout.png'))
         
         self.REPEAT_MODES = {PLAY_ONE: {'checked': False,
                                    'text': 'Play one',
@@ -759,7 +764,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.switch_repeat_to(PLAY_ALL)
         #self.buttonRepeat.setText('Play All')
         
-        self.buttonFading.clicked.connect(self.show_fading)
+        self.buttonAutomations.clicked.connect(self.show_automations)
         
         self.buttonReset.clicked.connect(self.reset_song_settings)
         
@@ -775,12 +780,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderFadeRange = QRangeSlider()
         self.sliderFadeRange.setOrientation(QtCore.Qt.Horizontal)
         self.sliderFadeRange.sliderReleased.connect(self.change_fade_range)
-        self.buttonSetFadeIn = QtWidgets.QPushButton()
-        self.buttonSetFadeIn.setText('sFi')
-        self.buttonSetFadeIn.setFixedSize(54, 32)
-        self.buttonSetFadeOut = QtWidgets.QPushButton()
-        self.buttonSetFadeOut.setText('sFo')
-        self.buttonSetFadeOut.setFixedSize(54, 32)
+        self.buttonSetFadeIn = QtWidgets.QToolButton()
+        self.buttonSetFadeIn.setIcon(self.FADEIN_ICON)
+        #self.buttonSetFadeIn.setText('sFi')
+        self.buttonSetFadeIn.setFixedSize(48, 25)
+        self.buttonSetFadeOut = QtWidgets.QToolButton()
+        self.buttonSetFadeOut.setIcon(self.FADEOUT_ICON)
+        #self.buttonSetFadeOut.setText('sFo')
+        self.buttonSetFadeOut.setFixedSize(48, 25)
         
         self.layoutVolumeRange.addWidget(self.buttonSetFadeIn)
         self.layoutVolumeRange.addWidget(self.sliderFadeRange)
@@ -788,23 +795,25 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonSetFadeIn.clicked.connect(self.set_fade_range)
         self.buttonSetFadeOut.clicked.connect(self.set_fade_range)
         
-        self.show_fading(False)
-        
         self.sliderPlaybackRange = QRangeSlider()
         self.sliderPlaybackRange.setOrientation(QtCore.Qt.Horizontal)
         self.sliderPlaybackRange.sliderReleased.connect(self.change_range)
-        self.buttonSetStart = QtWidgets.QPushButton()
-        self.buttonSetStart.setText('sSt')
-        self.buttonSetStart.setFixedSize(54, 32)
-        self.buttonSetEnd = QtWidgets.QPushButton()
-        self.buttonSetEnd.setText('sEn')
-        self.buttonSetEnd.setFixedSize(54, 32)
+        self.buttonSetStart = QtWidgets.QToolButton()
+        self.buttonSetStart.setIcon(self.START_ICON)
+        #self.buttonSetStart.setText('sSt')
+        self.buttonSetStart.setFixedSize(48, 25)
+        self.buttonSetEnd = QtWidgets.QToolButton()
+        self.buttonSetEnd.setIcon(self.END_ICON)
+        #self.buttonSetEnd.setText('sEn')
+        self.buttonSetEnd.setFixedSize(48, 25)
         
         self.layoutPlaybackRange.addWidget(self.buttonSetStart)
         self.layoutPlaybackRange.addWidget(self.sliderPlaybackRange)
         self.layoutPlaybackRange.addWidget(self.buttonSetEnd)
         self.buttonSetStart.clicked.connect(self.set_range)
         self.buttonSetEnd.clicked.connect(self.set_range)
+        
+        self.show_automations(False)
         
         self.list = SongListWidget(self)
         self.layoutSongList.addWidget(self.list)
@@ -1149,12 +1158,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 #self.list.set_row(song, playing=True) #раскомментировано для загрузки песни при нажатии stop: перенесено в stop
                 #pdb.set_trace()
                 self.change_range((song.start_pos, song.end_pos))
+                self.song_vol_change(song.volume, move_slider=True)
                 if song.faded:
-                    self.show_fading()
+                    self.show_automations()
+                    if self.fade_raitos[0]:
+                        self.song_vol_change(0, move_slider=True)
                 #self.change_fade_range(song.fade_range)
                 self.start_pos = song.start_pos
                 #self.change_pos(self.start_pos) #change_pos вызывается из change_range, если playback_pos < start_pos
-                self.song_vol_change(song.volume, move_slider=True)
                 mixer.music.load(song.path)
             else:
                 print('song not loaded because it is muted') 
@@ -1169,7 +1180,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song.buttonPlay.setIcon(self.PLAY_ICON)
         song.buttonPlay.setChecked(False)
         # self.list.song(self.list.playing) = None
-        self.show_fading(False)
+        self.show_automations(False)
         self.enable(False, just_playback=True)
                     
     def min_sec_from_ms(self, milliseconds, show_ms=False):
@@ -1306,14 +1317,20 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('raitos:', fade_in_raito, fade_out_raito)
         return (fade_in_raito, fade_out_raito)
         
-    def show_fading(self, show=True):
+    def show_automations(self, show=True):
         if show:
-            self.buttonFading.setChecked(True)
+            self.buttonAutomations.setChecked(True)
+            self.buttonSetStart.show()
+            self.sliderPlaybackRange.show()
+            self.buttonSetEnd.show()
             self.buttonSetFadeIn.show()
             self.sliderFadeRange.show()
             self.buttonSetFadeOut.show()
         else:
-            self.buttonFading.setChecked(False)
+            self.buttonAutomations.setChecked(False)
+            self.buttonSetStart.hide()
+            self.sliderPlaybackRange.hide()
+            self.buttonSetEnd.hide()
             self.buttonSetFadeIn.hide()
             self.sliderFadeRange.hide()
             self.buttonSetFadeOut.hide()
