@@ -513,7 +513,11 @@ background-color: DodgerBlue;
      </layout>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="layoutVolumeRange"/>
+     <layout class="QHBoxLayout" name="layoutVolumeRange">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+     </layout>
     </item>
     <item>
      <layout class="QHBoxLayout" name="layoutPlaybackRange">
