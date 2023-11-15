@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import audioread
 import pdb
 import json
 import sys
 import os
+from collections import deque
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
 import assets.icons
@@ -724,22 +726,26 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.END_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/end.png'))
         self.FADEIN_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/fadein.png'))
         self.FADEOUT_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/fadeout.png'))
+        self.PLAY_ONE_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/dont_repeat_one.png'))
+        self.REPEAT_ONE_ICON = QtGui.QIcon(QtGui.QPixmap(':/player/icons/repeat_one.png'))
+        self.PLAY_ALL_ICON = QtGui.QIcon(QtGui.QPixmap(':/player/icons/dont_repeat.png'))
+        self.REPEAT_ALL_ICON = QtGui.QIcon(QtGui.QPixmap(':/player/icons/repeat.png'))
         
         self.REPEAT_MODES = {PLAY_ONE: {'checked': False,
                                    'text': 'Play one',
-                                   'icon':  QtGui.QIcon(QtGui.QPixmap(':player/icons/dont_repeat_one.png')),
+                                   'icon':  self.PLAY_ONE_ICON,
                                   },
                         REPEAT_ONE: {'checked': True,
                                      'text': 'Repeat one',
-                                     'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/icons/repeat_one.png')),
+                                     'icon':  self.REPEAT_ONE_ICON,
                                   },
                         PLAY_ALL: {'checked': False,
                                    'text': 'Play all',
-                                   'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/icons/dont_repeat.png')),
+                                   'icon':  self.PLAY_ALL_ICON,
                                   },
                         REPEAT_ALL: {'checked': True,
                                      'text': 'Repeat all',
-                                     'icon':  QtGui.QIcon(QtGui.QPixmap(':/player/icons/repeat.png')),
+                                     'icon':  self.REPEAT_ALL_ICON,
                                   },
                        }                 
         self.save_dir = DEFAULT_SAVE_DIR
@@ -758,6 +764,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.signal = mixer.Sound(DEFAULT_SIGNAL_PATH)
         self.state = STOPED
         
+        self.song_drawing = []
+        
         self.options = OptionsDialog(self)
         
         self.end_of_playback.connect(self.play_next)
@@ -772,7 +780,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.buttonRepeat.clicked.connect(self.set_repeat)
         self.switch_repeat_to(PLAY_ALL)
-        #self.buttonRepeat.setText('Play All')
         
         self.buttonAutomations.clicked.connect(self.show_automations)
         
@@ -783,6 +790,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderSongVol.sliderPressed.connect(self.deny_volume_automation)
         self.sliderSongVol.sliderReleased.connect(self.song_vol_write)
         
+        self.sliderPlaybackPos.setStyleSheet("#centralwidget{background-color:green}")
         self.sliderPlaybackPos.sliderPressed.connect(self.deny_playback_automation)
         self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
         self.labelCurrentPosMs.hide()
@@ -792,11 +800,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderFadeRange.sliderReleased.connect(self.change_fade_range)
         self.buttonSetFadeIn = QtWidgets.QToolButton()
         self.buttonSetFadeIn.setIcon(self.FADEIN_ICON)
-        #self.buttonSetFadeIn.setText('sFi')
         self.buttonSetFadeIn.setFixedSize(48, 25)
         self.buttonSetFadeOut = QtWidgets.QToolButton()
         self.buttonSetFadeOut.setIcon(self.FADEOUT_ICON)
-        #self.buttonSetFadeOut.setText('sFo')
         self.buttonSetFadeOut.setFixedSize(48, 25)
         
         self.layoutVolumeRange.addWidget(self.buttonSetFadeIn)
@@ -810,11 +816,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderPlaybackRange.sliderReleased.connect(self.change_range)
         self.buttonSetStart = QtWidgets.QToolButton()
         self.buttonSetStart.setIcon(self.START_ICON)
-        #self.buttonSetStart.setText('sSt')
         self.buttonSetStart.setFixedSize(48, 25)
         self.buttonSetEnd = QtWidgets.QToolButton()
         self.buttonSetEnd.setIcon(self.END_ICON)
-        #self.buttonSetEnd.setText('sEn')
         self.buttonSetEnd.setFixedSize(48, 25)
         
         self.layoutPlaybackRange.addWidget(self.buttonSetStart)
@@ -1085,13 +1089,13 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             slider_pos = end_pos
         self.start_pos = slider_pos
         self.sliderPlaybackPos.setValue(slider_pos)
-        if not self.allow_playback_update:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
-            self.allow_automations_update(playback=True, volume=None)
         if self.state == PLAYING:#mixer.music.get_busy():
             print('CHANGE_POS: Playing mode - start playing and playback update')
             #mixer.music.stop().    ##### ОТКЛЮЧЕНО ЭКСПЕРИМЕНТАЛЬНО. Вырубалось обновление слайдера в этот момент
             mixer.music.play(start=slider_pos / 1000)
             self.start_playback_update()
+        if not self.allow_playback_update:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
+            self.allow_automations_update(playback=True, volume=None)
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
         if self.high_acuracy:
@@ -1139,16 +1143,16 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if new_slider_pos >= 0:
             self.high_acuracy = True
             self.deny_playback_automation()
-            self.sliderPlaybackPos.setValue(new_slider_pos)
-            self.change_pos()
+            #self.sliderPlaybackPos.setValue(new_slider_pos)
+            self.change_pos(new_slider_pos)
         
     def step_fforward(self):
         new_slider_pos = self.sliderPlaybackPos.value() + CHANGE_POS_STEP
         if new_slider_pos <=  self.list.song(self.list.playing).length:
             self.high_acuracy = True
             self.deny_playback_automation()
-            self.sliderPlaybackPos.setValue(new_slider_pos)
-            self.change_pos()
+            #self.sliderPlaybackPos.setValue(new_slider_pos)
+            self.change_pos(new_slider_pos)
     
     def load(self, song):
         print('LOAD')
@@ -1179,10 +1183,52 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.start_pos = song.start_pos
                 #self.change_pos(self.start_pos) #change_pos вызывается из change_range, если playback_pos < start_pos
                 mixer.music.load(song.path)
+                self.get_drawing(song.path)
             else:
                 print('song not loaded because it is muted') 
         else:
              print('song not loaded. No song to load! Current song:', self.list.song(self.list.selected))
+    
+    def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
+        return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
+    
+    def get_drawing(self, song_path):
+        with audioread.audio_open(song_path) as f:
+            print(f.channels, f.samplerate, f.duration)
+            print('total samples:', f.samplerate * f.duration)
+            width = self.sliderPlaybackPos.width() - 10
+            print('WIDTH:', width)
+            frame = 2
+            amplitude = 25
+            step = int((f.samplerate * f.duration) / width) * frame
+            read_pos = 0
+            samples = []
+            tail = 0
+            for buf in f:
+                read_pos = tail or 0
+                buf_int = memoryview(buf).cast('h')
+                while (read_pos + 1) < len(buf_int):
+                    channels_bytes = []
+                    for i in range(f.channels):
+                        channel_bytes = buf_int[read_pos]
+                        channels_bytes.append(channel_bytes)
+                        read_pos += 1
+                    sample = abs(channels_bytes[0])
+                    #sample = int(self.scale_number(sample, 0, 26, 0, max_sample))#32768))
+                    samples.append(sample)
+                    read_pos += step
+                tail = abs(read_pos - len(buf_int) - 1)
+            samples_averaged = []
+            FRAME_WIDTH = 3
+            frame = deque(maxlen=FRAME_WIDTH)
+            max_sample = max(samples)
+            for sample in samples:
+                sample = int(self.scale_number(sample, 0, 26, 0, max_sample))#32768))
+                frame.append(sample)
+                if len(frame) >= FRAME_WIDTH:
+                    sample_averaged = int(sum(frame) / FRAME_WIDTH)
+                    samples_averaged.append(sample_averaged)
+            self.song_drawing = samples_averaged
     
     def eject(self):
         #if  self.list.song(self.list.playing):
@@ -1392,6 +1438,25 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deny_playback_automation()
         self.deny_volume_automation()
         event.accept()
+        
+    def paintEvent(self, a0: QtGui.QPaintEvent) -> None:
+        painter = QtGui.QPainter(self)
+        painter.setBrush(QtCore.Qt.lightGray)
+        pos = self.sliderPlaybackPos.pos()
+        rect = self.sliderPlaybackPos.rect()
+        margin_x = 4
+        margin_y = 5
+        #print(pos.x(), pos.y(), rect.width(), rect.height())
+        polygon = QtGui.QPolygon()
+        polygon.append(QtCore.QPoint(pos.x() + margin_x, 
+                                     pos.y() + rect.height() - margin_y))
+        for i, sample in enumerate(self.song_drawing):
+            polygon.append(QtCore.QPoint(pos.x() + margin_x + i,
+                                         pos.y() + rect.height() - margin_y - sample))
+        polygon.append(QtCore.QPoint(pos.x() + margin_x + len(self.song_drawing), 
+                                     pos.y() + rect.height() - margin_y))
+        painter.drawConvexPolygon(polygon) # рисует ту же линию, но с затониорованым низом.
+        #painter.drawPolyline(polygon) # может сделать пункт настроек?
     
     def qlist_info(self):
         print('INFO:')
