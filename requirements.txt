@@ -1,5 +1,12 @@
+audioread==3.0.1
 mutagen==1.46.0
+packaging==23.2
+pipdeptree==2.11.0
 pygame==2.0.2
+Pygments==2.16.1
 PyQt5==5.15.9
 PyQt5-Qt5==5.15.2
-PyQt5-sip==12.12.1
+PyQt5-sip==12.12.2
+QtPy==2.4.0
+superqt==0.5.4
+typing_extensions==4.8.0

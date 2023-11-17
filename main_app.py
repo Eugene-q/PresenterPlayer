@@ -790,7 +790,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderSongVol.sliderPressed.connect(self.deny_volume_automation)
         self.sliderSongVol.sliderReleased.connect(self.song_vol_write)
         
-        self.sliderPlaybackPos.setStyleSheet("#centralwidget{background-color:green}")
+        self.sliderPlaybackPos.resize(self.width() - 92, 27)
         self.sliderPlaybackPos.sliderPressed.connect(self.deny_playback_automation)
         self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
         self.labelCurrentPosMs.hide()
@@ -1183,9 +1183,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.start_pos = song.start_pos
                 #self.change_pos(self.start_pos) #change_pos вызывается из change_range, если playback_pos < start_pos
                 mixer.music.load(song.path)
-                self.get_drawing(song.path)
             else:
                 print('song not loaded because it is muted') 
+            self.get_drawing(song.path)
         else:
              print('song not loaded. No song to load! Current song:', self.list.song(self.list.selected))
     
@@ -1196,6 +1196,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         with audioread.audio_open(song_path) as f:
             print(f.channels, f.samplerate, f.duration)
             print('total samples:', f.samplerate * f.duration)
+            print(self.sliderPlaybackPos.frameGeometry())
             width = self.sliderPlaybackPos.width() - 10
             print('WIDTH:', width)
             frame = 2
@@ -1439,7 +1440,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deny_volume_automation()
         event.accept()
         
-    def paintEvent(self, a0: QtGui.QPaintEvent) -> None:
+    def paintEvent(self, event) -> None:  #a0: QtGui.QPaintEvent
         painter = QtGui.QPainter(self)
         painter.setBrush(QtCore.Qt.lightGray)
         pos = self.sliderPlaybackPos.pos()
