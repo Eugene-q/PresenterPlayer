@@ -11,8 +11,6 @@ from PyQt5 import uic
 import assets.icons
 from pygame import mixer
 from superqt import QRangeSlider
-from mutagen.mp3 import MP3
-from mutagen.wave import WAVE
 from shutil import copyfile, rmtree
 from time import sleep
 from threading import Thread, get_ident
@@ -63,8 +61,11 @@ REPEAT_ALL = 3
 
 OK = 1024
 
-# PLAY_LABEL = 'P'
-# PAUSED_LABEL = 'Paused'
+BASE_WAVEFORM_DISPLAY_WIDTH = 1920
+PLAYBACK_SLIDER_WIDTH_OFFSET = 92
+PLAYBACK_SLIDER_WAVEFORM_OFFSET = 10
+WAVEFORM_AVERAGING_FRAME_WIDTH = 3
+PLAYBACK_SLIDER_HEIGHT = 27
 
 LIST_ITEM_HEIGHT = 28
 
@@ -132,6 +133,7 @@ class SongWidget(QtWidgets.QWidget):
                        fade_range=(0, 0),
                        faded=False,# убрать. Вычисляется при создании песни на основе fade_range
                        muted=False,
+                       waveform=[]
                        ):
         super().__init__()
         self.id = id
@@ -154,6 +156,7 @@ class SongWidget(QtWidgets.QWidget):
         self.automated = False
         self.set_automations(fade_range=self.fade_range)
         self.muted = muted
+        self.waveform = waveform
         self.song_list = parent
         
         uic.loadUi(SONG_ITEM_UI_PATH, self)
@@ -238,10 +241,13 @@ class SongListWidget(QtWidgets.QWidget):
         self.selected = 0               #selected song index
         self.playing = self.selected    #playing song index
         self.set_current_row(0)
+    
+    def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
+        return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
         
-    def add_songs(self, filenames=[], songs_info=[]):
-        list_was_empty = self.is_empty() #запоминаем до внесения изменений
-        if songs_info:
+    def add_songs(self, filenames=[], songs_info=[]):  #TODO СЮДА ЗАГРУЗКУ ФОРМЫ ВОЛНЫ
+        list_was_empty = self.is_empty() 
+        if songs_info:                   # Добавление песен из загруженного списка
             for info in songs_info:
                 song_widget = SongWidget(parent=self,
                                         id=info.get('id'),
@@ -256,12 +262,13 @@ class SongListWidget(QtWidgets.QWidget):
                                         fade_range=info.get('fade_range'),
                                         faded=info.get('faded'),
                                         muted=info.get('muted'),
+                                        waveform=info.get('waveform')
                                         )
                 self.add_song_widget(song_widget)
         else:
-            if not filenames:
+            if not filenames:           # Добавление песен по кнопке +
                 filepaths = QtWidgets.QFileDialog.getOpenFileNames(self, 
-                                                        'Добавить дорржки', 
+                                                        'Добавить дорожки', 
                                                         '.', 
                                                         'Music Files (*.mp3 *.wav)',
                                                         )[0]
@@ -269,34 +276,62 @@ class SongListWidget(QtWidgets.QWidget):
                 current_playback_filenames = self.get_playback_dir_filenames()
                 #print('Playback filenames:', current_playback_filenames)
                 for filepath in filepaths:
-                    filedir, filename = os.path.split(filepath) #СЮДА ПРОВЕРКУ НА КОРРЕКТНЫЕ СИМВОЛЫ В ИМЕНИ ФАЙЛА
+                    filedir, filename = os.path.split(filepath)
                     improved_filename = self.improve_filename(filename)
                     if improved_filename:
                         filename = improved_filename
-                        #print('IMPROVED ! ! !')
-                        pass # Окно предупреждения об удалении недопустимых символов
+                        pass            # TODO Окно предупреждения об удалении недопустимых символов
                     filenames.append(filename)
                     if filename not in current_playback_filenames:
                         copyfile(filepath, os.path.join(self.playback_dir, filename))
         
             for song_filename in filenames:
                 song_file_path = os.path.join(self.playback_dir, song_filename)
-                song_name, sep, file_type = song_filename.rpartition('.')
-                print('FILE TYPE:', file_type)
-                if file_type == 'mp3':
-                    song_info = MP3(song_file_path).info
-                elif file_type == 'WAV' or file_type == 'wav':
-                    song_info = WAVE(song_file_path).info
-                else:
-                    print('Unsupported sound file!')#TODO Сделать окно предупреждения
-                length = song_info.length
-                length = int(length * 1000) #convert to int milliseconds
+                with audioread.audio_open(song_file_path) as audio_file:
+                    #print('Unsupported sound file!')#TODO Сделать окно предупреждения
+                    channels, samplerate, duration = audio_file.channels, audio_file.samplerate, audio_file.duration
+                    print(channels, samplerate, duration)
+                    print('total samples:', samplerate * duration)
+                    width = (BASE_WAVEFORM_DISPLAY_WIDTH - PLAYBACK_SLIDER_WIDTH_OFFSET - 
+                                    PLAYBACK_SLIDER_WAVEFORM_OFFSET)
+                    print('WIDTH:', width)
+                    amplitude = PLAYBACK_SLIDER_HEIGHT
+                    step = int((samplerate * duration) / width) * channels
+                    read_pos = 0
+                    samples = []
+                    tail = 0
+                    for buf in audio_file:
+                        read_pos = tail or 0
+                        buf_int = memoryview(buf).cast('h')
+                        while (read_pos + 1) < len(buf_int):
+                            channels_bytes = []
+                            for i in range(channels):
+                                channel_bytes = buf_int[read_pos]
+                                channels_bytes.append(channel_bytes)
+                                read_pos += 1
+                            sample = abs(max(channels_bytes))
+                            #sample = int(self.scale_number(sample, 0, 26, 0, max_sample))#32768))
+                            samples.append(sample)
+                            read_pos += step
+                        tail = abs(read_pos - len(buf_int) - 1)
+                    samples_averaged = []
+                    frame = deque(maxlen=WAVEFORM_AVERAGING_FRAME_WIDTH)
+                    max_sample = max(samples)
+                    for sample in samples:
+                        sample = int(self.scale_number(sample, 0, PLAYBACK_SLIDER_HEIGHT, 0, max_sample))
+                        frame.append(sample)
+                        if len(frame) >= WAVEFORM_AVERAGING_FRAME_WIDTH:
+                            sample_averaged = int(sum(frame) / WAVEFORM_AVERAGING_FRAME_WIDTH)
+                            samples_averaged.append(sample_averaged)
+                length = int(duration * 1000)
+                song_name, file_type = os.path.splitext(song_filename)
                 song_widget = SongWidget(parent=self.list,
                                          id=self.get_id(),
                                          path=song_file_path,
                                          name=song_name,
                                          file_type=file_type,
                                          length=length,
+                                         waveform=samples_averaged
                                          )
                 self.add_song_widget(song_widget)
         if filenames:
@@ -680,6 +715,7 @@ class SongList(QtWidgets.QListWidget):
             return song
     
     def get_song_info(self, song):
+        #waveform = song.waveform or []
         song_info = {'id': song.id,
                     'path': song.path,
                     'name': song.name,
@@ -692,6 +728,7 @@ class SongList(QtWidgets.QListWidget):
                     'fade_range': song.fade_range,
                     'faded': song.faded,
                     'muted': song.muted,
+                    'waveform': song.waveform#''.join([str(sample) for sample in waveform]),
         }
         return song_info
         
@@ -764,7 +801,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.signal = mixer.Sound(DEFAULT_SIGNAL_PATH)
         self.state = STOPED
         
-        self.song_drawing = []
+        self.waveform = []
         
         self.options = OptionsDialog(self)
         
@@ -790,7 +827,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.sliderSongVol.sliderPressed.connect(self.deny_volume_automation)
         self.sliderSongVol.sliderReleased.connect(self.song_vol_write)
         
-        self.sliderPlaybackPos.resize(self.width() - 92, 27)
+        self.sliderPlaybackPos.resize(self.width() - PLAYBACK_SLIDER_WIDTH_OFFSET, PLAYBACK_SLIDER_HEIGHT)
         self.sliderPlaybackPos.sliderPressed.connect(self.deny_playback_automation)
         self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
         self.labelCurrentPosMs.hide()
@@ -1185,51 +1222,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 mixer.music.load(song.path)
             else:
                 print('song not loaded because it is muted') 
-            self.get_drawing(song.path)
+            self.waveform = song.waveform
+            self.resizeEvent(QtGui.QResizeEvent)
         else:
              print('song not loaded. No song to load! Current song:', self.list.song(self.list.selected))
-    
-    def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
-        return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
-    
-    def get_drawing(self, song_path):
-        with audioread.audio_open(song_path) as f:
-            print(f.channels, f.samplerate, f.duration)
-            print('total samples:', f.samplerate * f.duration)
-            print(self.sliderPlaybackPos.frameGeometry())
-            width = self.sliderPlaybackPos.width() - 10
-            print('WIDTH:', width)
-            frame = 2
-            amplitude = 25
-            step = int((f.samplerate * f.duration) / width) * frame
-            read_pos = 0
-            samples = []
-            tail = 0
-            for buf in f:
-                read_pos = tail or 0
-                buf_int = memoryview(buf).cast('h')
-                while (read_pos + 1) < len(buf_int):
-                    channels_bytes = []
-                    for i in range(f.channels):
-                        channel_bytes = buf_int[read_pos]
-                        channels_bytes.append(channel_bytes)
-                        read_pos += 1
-                    sample = abs(channels_bytes[0])
-                    #sample = int(self.scale_number(sample, 0, 26, 0, max_sample))#32768))
-                    samples.append(sample)
-                    read_pos += step
-                tail = abs(read_pos - len(buf_int) - 1)
-            samples_averaged = []
-            FRAME_WIDTH = 3
-            frame = deque(maxlen=FRAME_WIDTH)
-            max_sample = max(samples)
-            for sample in samples:
-                sample = int(self.scale_number(sample, 0, 26, 0, max_sample))#32768))
-                frame.append(sample)
-                if len(frame) >= FRAME_WIDTH:
-                    sample_averaged = int(sum(frame) / FRAME_WIDTH)
-                    samples_averaged.append(sample_averaged)
-            self.song_drawing = samples_averaged
     
     def eject(self):
         #if  self.list.song(self.list.playing):
@@ -1439,6 +1435,20 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deny_playback_automation()
         self.deny_volume_automation()
         event.accept()
+    
+    def resizeEvent(self, event):
+        slider_width = self.width() - PLAYBACK_SLIDER_WIDTH_OFFSET - PLAYBACK_SLIDER_WAVEFORM_OFFSET
+        base_waveform = self.list.song(self.list.playing).waveform
+        #print('current waveform len:', len(self.waveform))
+        #print('slider width:', slider_width)
+        new_waveform = []
+        step = len(base_waveform) / slider_width
+        read_pos = 0
+        while read_pos < len(base_waveform) - 1:
+            new_waveform.append(base_waveform[int(read_pos)])
+            read_pos += step
+        #print('new waveform len:', len(new_waveform))
+        self.waveform = new_waveform
         
     def paintEvent(self, event) -> None:  #a0: QtGui.QPaintEvent
         painter = QtGui.QPainter(self)
@@ -1451,10 +1461,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         polygon = QtGui.QPolygon()
         polygon.append(QtCore.QPoint(pos.x() + margin_x, 
                                      pos.y() + rect.height() - margin_y))
-        for i, sample in enumerate(self.song_drawing):
+        for i, sample in enumerate(self.waveform):
             polygon.append(QtCore.QPoint(pos.x() + margin_x + i,
                                          pos.y() + rect.height() - margin_y - sample))
-        polygon.append(QtCore.QPoint(pos.x() + margin_x + len(self.song_drawing), 
+        polygon.append(QtCore.QPoint(pos.x() + margin_x + len(self.waveform), 
                                      pos.y() + rect.height() - margin_y))
         painter.drawConvexPolygon(polygon) # рисует ту же линию, но с затониорованым низом.
         #painter.drawPolyline(polygon) # может сделать пункт настроек?
