@@ -1,5 +1,4 @@
 audioread==3.0.1
-mutagen==1.46.0
 packaging==23.2
 pipdeptree==2.11.0
 pygame==2.0.2
