@@ -35,8 +35,9 @@ DEFAULT_SONGLIST_NAME = 'Новый список воспроизведения'
 OPTIONS_FILE_PATH = 'assets/options.json'
 DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, 
                                             DEFAULT_SONGLIST_NAME + SONG_LIST_EXTENSION),
-                   'enable_signals': False,
-                   'signals_volume': 50, 
+                   'signals_enabled': False,
+                   'signals_volume': 50,
+                   'always_show_automations': False,
                 }
 
 CLEAR_WARNING = 'Все несохранённые изменения будут утеряны! Очистить список?'
@@ -71,13 +72,20 @@ LIST_ITEM_HEIGHT = 28
 
 
 class OptionsDialog(QtWidgets.QDialog):
-    def __init__(self, player):
+    def __init__(self, options_file_path, player):
         super().__init__()
         
         uic.loadUi(OPTIONS_DIALOG_UI_PATH, self)
         
+        # self.last_playlist_path = ''
+        # self.enable_signals = False
+        # self.signals_volume = 50
+        # self.always_show_automations = False
+        #
+        # self.options_set = DEFAULT_OPTIONS
+        self.options_file_path = options_file_path
         self.player = player
-        self.set = DEFAULT_OPTIONS
+        
         self.load()
         self.cancel()
         
@@ -86,37 +94,42 @@ class OptionsDialog(QtWidgets.QDialog):
         self.buttonCancel.clicked.connect(self.cancel)
     
     def load(self):
-        if os.path.exists(OPTIONS_FILE_PATH):
-            with open(OPTIONS_FILE_PATH, 'r', encoding='utf-8') as options_file:
-                self.set = json.load(options_file)
-                if not self.set:
-                    self.set = DEFAULT_OPTIONS
-        self.player.signals_volume = self.set.get('signals_volume')
-        self.player.signals_enabled = self.set.get('enable_signals')
+        if os.path.exists(self.options_file_path):
+            with open(self.options_file_path, 'r', encoding='utf-8') as options_file:
+                options_set = json.load(options_file) or DEFAULT_OPTIONS
+        else:
+            options_set = DEFAULT_OPTIONS
+        for option, value in options_set.items():
+            setattr(self, option, value)
+        # self.player.signals_volume = self.options_set.get('signals_volume')
+        # self.player.signals_enabled = self.options_set.get('enable_signals')
+        # self.player.always_show_automations = self.options_set.get('always_show_automations')
         
     def save(self):
-        self.player.signals_enabled = self.checkBoxEnableSignals.isChecked()
-        self.player.signals_volume = self.sliderSignalsVol.value() / 100
-        self.set_option('enable_signals', self.player.signals_enabled)
-        self.set_option('signals_volume', self.player.signals_volume)
-        self.set_option('last_playlist_path', self.player.list.save_file_path)
-        with open(OPTIONS_FILE_PATH, 'w', encoding='utf-8') as options_file:
-            json.dump(self.set, options_file, indent=4)
+        self.signals_enabled = self.checkBoxEnableSignals.isChecked()
+        self.signals_volume = self.sliderSignalsVol.value() / 100
+        self.always_show_automations = self.checkBoxShowAutomations.isChecked()
+        self.last_playlist_path = self.player.list.save_file_path
+        options_set = {'last_playlist_path': self.last_playlist_path,
+                       'signals_enabled': self.signals_enabled,
+                       'signals_volume': self.signals_volume,
+                       'always_show_automations': self.always_show_automations,
+                   }
+        with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
+            json.dump(options_set, options_file, indent=4)
+        self.player.show_automations(self.always_show_automations)
         self.hide()
         
     def cancel(self):
-        self.sliderSignalsVol.setValue(int(self.player.signals_volume * 100))
-        self.checkBoxEnableSignals.setChecked(self.player.signals_enabled)
+        self.sliderSignalsVol.setValue(int(self.signals_volume * 100))
+        self.checkBoxEnableSignals.setChecked(self.signals_enabled)
         self.hide()
     
     def test_signal_vol(self,):
         if self.checkBoxEnableSignals.isChecked():
             volume = self.sliderSignalsVol.value() / 100
-            self.player.play_signal(enabled=self.checkBoxEnableSignals.isChecked(), 
+            self.player.play_signal(enabled=True, 
                                     volume=volume)
-       
-    def set_option(self, option_name, option_value):
-        self.set[option_name] = option_value
        
 
 class SongWidget(QtWidgets.QWidget):
@@ -792,19 +805,19 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.song_volume = 100
         self.fade_raitos = (0, 0)
         self.master_volume = self.START_VOLUME
-        self.signals_volume = 50
-        self.signals_enabled = False
+        #self.signals_volume = 50
+        #self.signals_enabled = False
         self.signal = mixer.Sound(DEFAULT_SIGNAL_PATH)
         self.state = STOPED
-        
+        self.repeat_mode = PLAY_ALL
+        self.prev_repeat_mode = self.repeat_mode
         self.waveform = []
         
-        self.options = OptionsDialog(self)
+        self.options = OptionsDialog(OPTIONS_FILE_PATH, self)
         
         self.end_of_playback.connect(self.play_next)
         
         self.buttonOptions.clicked.connect(self.options.show)
-        
         self.buttonPrevious.clicked.connect(self.play_previous)
         self.buttonStop.clicked.connect(self._stop)
         self.buttonPlay.clicked.connect(self.play_pause)
@@ -864,22 +877,19 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.list = SongListWidget(self)
         self.layoutSongList.addWidget(self.list)
-        self.repeat_mode = PLAY_ALL
-        self.prev_repeat_mode = self.repeat_mode
         
-        initial_save_file_path = self.options.set.get('last_playlist_path')
-        if not os.path.exists(initial_save_file_path):
+        if not os.path.exists(self.options.last_playlist_path):
             self.list.save_as(DEFAULT_SAVE_DIR + 
                                    DEFAULT_SONGLIST_NAME + 
                                    SONG_LIST_EXTENSION)
         else:
-            self.list.load(initial_save_file_path)
+            self.list.load(self.options.last_playlist_path)
             
         if self.list.is_empty():
             self.enable(False)
         else:
-            #print('first song loaded:', self.list.song(self.list.playing))
             self.load(self.list.song(self.list.playing)) 
+            
         
     def _play(self):
         self.play_signal()
@@ -1208,7 +1218,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.change_range((song.start_pos, song.end_pos))
                 #self.song_vol_change(song.volume, move_slider=True)
                 self.sliderSongVol.setValue(song.volume)
-                if song.faded or song.range_limited:
+                if song.faded or song.range_limited or self.options.always_show_automations:
                     self.show_automations()
                     if self.fade_raitos[0]:
                         self.sliderSongVol.setValue(0)
@@ -1412,9 +1422,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def play_signal(self, enabled=None, volume=None):
         if enabled == None:
-            enabled = self.signals_enabled
+            enabled = self.options.signals_enabled
         if volume == None:
-            volume = self.signals_volume
+            volume = self.options.signals_volume
         if enabled:
             self.signal.set_volume(volume)
             self.signal.play()
@@ -1426,7 +1436,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             action()
 
     def closeEvent(self, event):
-        #self.options.set_option('last_playlist_path', self.list.save_file_path)
         self.options.save()
         self.deny_playback_automation()
         self.deny_volume_automation()

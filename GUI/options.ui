@@ -24,8 +24,8 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>521</width>
-     <height>81</height>
+     <width>201</width>
+     <height>121</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -38,13 +38,26 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>50</y>
-      <width>71</width>
+      <y>60</y>
+      <width>161</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>вкл</string>
+     <string>Включить сигналы</string>
+    </property>
+   </widget>
+   <widget class="QSlider" name="sliderSignalsVol">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>90</y>
+      <width>160</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
     </property>
    </widget>
    <widget class="QLabel" name="label">
@@ -52,25 +65,12 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>60</width>
+      <width>171</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>Сигналы</string>
-    </property>
-   </widget>
-   <widget class="QSlider" name="sliderSignalsVol">
-    <property name="geometry">
-     <rect>
-      <x>80</x>
-      <y>50</y>
-      <width>160</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="orientation">
-     <enum>Qt::Horizontal</enum>
+     <string>Управление презентером</string>
     </property>
    </widget>
   </widget>
@@ -102,6 +102,35 @@
      </widget>
     </item>
    </layout>
+  </widget>
+  <widget class="QFrame" name="frame_2">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>10</y>
+     <width>301</width>
+     <height>80</height>
+    </rect>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::StyledPanel</enum>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Raised</enum>
+   </property>
+   <widget class="QCheckBox" name="checkBoxShowAutomations">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>291</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Всегда отображать ручки автоматизации</string>
+    </property>
+   </widget>
   </widget>
  </widget>
  <resources/>
