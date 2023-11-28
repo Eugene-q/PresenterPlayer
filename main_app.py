@@ -131,7 +131,6 @@ class SongWidget(QtWidgets.QWidget):
                        end_pos=0,
                        repeat=False,
                        fade_range=(0, 0),
-                       faded=False,# убрать. Вычисляется при создании песни на основе fade_range
                        muted=False,
                        waveform=[]
                        ):
@@ -143,18 +142,16 @@ class SongWidget(QtWidgets.QWidget):
         self.volume = volume
         self.length = length
         self.start_pos = start_pos
-        self.end_pos = end_pos
-        if not end_pos:
-            self.end_pos = length
+        self.end_pos = end_pos or length
         self.repeat = repeat
         self.faded = False 
         fade_in, fade_out = fade_range
         if not fade_out:
             fade_out = self.end_pos
         self.fade_range = (fade_in, fade_out)
-        #self.set_fading(self.fade_range)
-        self.automated = False
-        self.set_automations(fade_range=self.fade_range)
+        self.set_fading(self.fade_range)
+        self.range_limited = False
+        self.set_playback_range((self.start_pos, self.end_pos))
         self.muted = muted
         self.waveform = waveform
         self.song_list = parent
@@ -185,12 +182,9 @@ class SongWidget(QtWidgets.QWidget):
         self.lineNewSongName.hide()
         self.labelSongName.show()
     
-    def set_automations(self, playback_range=(), fade_range=()):
-        if playback_range:
-            self.start_pos, self.end_pos = playback_range
-        if fade_range:
-            self.set_fading(fade_range)
-        self.automated = (self.start_pos != 0 or
+    def set_playback_range(self, playback_range):
+        self.start_pos, self.end_pos = playback_range
+        self.range_limited = (self.start_pos != 0 or
                           self.end_pos != self.length) or False
             
     def set_fading(self, fade_range):
@@ -245,7 +239,7 @@ class SongListWidget(QtWidgets.QWidget):
     def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
         return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
         
-    def add_songs(self, filenames=[], songs_info=[]):  #TODO СЮДА ЗАГРУЗКУ ФОРМЫ ВОЛНЫ
+    def add_songs(self, filenames=[], songs_info=[]): 
         list_was_empty = self.is_empty() 
         if songs_info:                   # Добавление песен из загруженного списка
             for info in songs_info:
@@ -289,7 +283,9 @@ class SongListWidget(QtWidgets.QWidget):
                 song_file_path = os.path.join(self.playback_dir, song_filename)
                 with audioread.audio_open(song_file_path) as audio_file:
                     #print('Unsupported sound file!')#TODO Сделать окно предупреждения
-                    channels, samplerate, duration = audio_file.channels, audio_file.samplerate, audio_file.duration
+                    channels = audio_file.channels 
+                    samplerate = audio_file.samplerate
+                    duration = audio_file.duration
                     print(channels, samplerate, duration)
                     print('total samples:', samplerate * duration)
                     width = (BASE_WAVEFORM_DISPLAY_WIDTH - PLAYBACK_SLIDER_WIDTH_OFFSET - 
@@ -1154,7 +1150,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         fade_out_delta = fade_out - song.end_pos
         #song.start_pos = start_pos
         #song.end_pos = end_pos
-        song.set_automations(playback_range=(start_pos, end_pos))
+        song.set_playback_range((start_pos, end_pos))
         self.labelEndPos.setText(self.min_sec_from_ms(end_pos))
         if self.sliderPlaybackPos.value() < start_pos:
             self.change_pos(start_pos)
@@ -1212,7 +1208,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.change_range((song.start_pos, song.end_pos))
                 #self.song_vol_change(song.volume, move_slider=True)
                 self.sliderSongVol.setValue(song.volume)
-                if song.faded or song.automated:
+                if song.faded or song.range_limited:
                     self.show_automations()
                     if self.fade_raitos[0]:
                         self.sliderSongVol.setValue(0)
@@ -1337,7 +1333,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.list.set_saved(False)
         else:               #set_fade_range
             fadein_pos, fadeout_pos = fade_range
-        song.set_automations(fade_range=(fadein_pos, fadeout_pos))
+        song.set_fading((fadein_pos, fadeout_pos))
         self.sliderFadeRange.setValue(song.fade_range)
         self.fade_raitos = self.get_fade_raitos()
     
@@ -1438,17 +1434,19 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def resizeEvent(self, event):
         slider_width = self.width() - PLAYBACK_SLIDER_WIDTH_OFFSET - PLAYBACK_SLIDER_WAVEFORM_OFFSET
-        base_waveform = self.list.song(self.list.playing).waveform
-        #print('current waveform len:', len(self.waveform))
-        #print('slider width:', slider_width)
-        new_waveform = []
-        step = len(base_waveform) / slider_width
-        read_pos = 0
-        while read_pos < len(base_waveform) - 1:
-            new_waveform.append(base_waveform[int(read_pos)])
-            read_pos += step
-        #print('new waveform len:', len(new_waveform))
-        self.waveform = new_waveform
+        song = self.list.song(self.list.playing)
+        if song:
+            base_waveform = song.waveform
+            #print('current waveform len:', len(self.waveform))
+            #print('slider width:', slider_width)
+            new_waveform = []
+            step = len(base_waveform) / slider_width
+            read_pos = 0
+            while read_pos < len(base_waveform) - 1:
+                new_waveform.append(base_waveform[int(read_pos)])
+                read_pos += step
+            #print('new waveform len:', len(new_waveform))
+            self.waveform = new_waveform
         
     def paintEvent(self, event) -> None:  #a0: QtGui.QPaintEvent
         painter = QtGui.QPainter(self)
