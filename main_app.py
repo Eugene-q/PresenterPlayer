@@ -76,13 +76,7 @@ class OptionsDialog(QtWidgets.QDialog):
         super().__init__()
         
         uic.loadUi(OPTIONS_DIALOG_UI_PATH, self)
-        
-        # self.last_playlist_path = ''
-        # self.enable_signals = False
-        # self.signals_volume = 50
-        # self.always_show_automations = False
-        #
-        # self.options_set = DEFAULT_OPTIONS
+
         self.options_file_path = options_file_path
         self.player = player
         
@@ -101,10 +95,7 @@ class OptionsDialog(QtWidgets.QDialog):
             options_set = DEFAULT_OPTIONS
         for option, value in options_set.items():
             setattr(self, option, value)
-        # self.player.signals_volume = self.options_set.get('signals_volume')
-        # self.player.signals_enabled = self.options_set.get('enable_signals')
-        # self.player.always_show_automations = self.options_set.get('always_show_automations')
-        
+
     def save(self):
         self.signals_enabled = self.checkBoxEnableSignals.isChecked()
         self.signals_volume = self.sliderSignalsVol.value() / 100
@@ -334,7 +325,7 @@ class SongListWidget(QtWidgets.QWidget):
                             samples_averaged.append(sample_averaged)
                 length = int(duration * 1000)
                 song_name, file_type = os.path.splitext(song_filename)
-                song_widget = SongWidget(parent=self.list,
+                song_widget = SongWidget(parent=self,
                                          id=self.get_id(),
                                          path=song_file_path,
                                          name=song_name,
@@ -735,7 +726,6 @@ class SongList(QtWidgets.QListWidget):
                     'end_pos': song.end_pos,
                     'repeat': song.repeat,
                     'fade_range': song.fade_range,
-                    'faded': song.faded,
                     'muted': song.muted,
                     'waveform': song.waveform#''.join([str(sample) for sample in waveform]),
         }
@@ -1243,6 +1233,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         # self.list.song(self.list.playing) = None
         self.show_automations(False)
         self.enable(False, just_playback=True)
+        self.waveform = []
                     
     def min_sec_from_ms(self, milliseconds, show_ms=False):
         sec_float = milliseconds / 1000
