@@ -174,11 +174,13 @@ class SongWidget(QtWidgets.QWidget):
         self.lineNewSongName.setText(self.name)
         self.lineNewSongName.selectAll()
         self.lineNewSongName.setFocus()
+        self.song_list.player.enable_controls(False)
         
     def save_name(self):
         self.name = self.lineNewSongName.text()
         self.labelSongName.setText(self.name)
         self.song_list.set_saved(False)
+        self.song_list.player.enable_controls()
         self.normal_mode()
         
     def normal_mode(self):
@@ -258,7 +260,6 @@ class SongListWidget(QtWidgets.QWidget):
                                         end_pos=info.get('end_pos'),
                                         repeat=info.get('repeat'),
                                         fade_range=info.get('fade_range'),
-                                        faded=info.get('faded'),
                                         muted=info.get('muted'),
                                         waveform=info.get('waveform')
                                         )
@@ -555,6 +556,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.player.enable(just_playback=True)
         
     def rename_mode(self):
+        self.player.enable_controls(False)
         self.buttonListHeader.hide()
         self.lineListHeader.show()
         self.lineListHeader.setText(self.buttonListHeader.text())
@@ -562,6 +564,7 @@ class SongListWidget(QtWidgets.QWidget):
         self.lineListHeader.setFocus()
 
     def normal_mode(self):
+        self.player.enable_controls()
         self.buttonListHeader.show()
         self.lineListHeader.hide()
         self.lineListHeader.clearFocus()
@@ -756,6 +759,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                          QtCore.Qt.Key_Right: self.step_fforward,
                          QtCore.Qt.Key_Z: self.qlist_info,
                          }
+        self.controls_enabled = True
+        
         self.PLAY_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/play.png'))
         self.PAUSED_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/pause.png'))
         self.START_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/start.png'))
@@ -1419,11 +1424,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if enabled:
             self.signal.set_volume(volume)
             self.signal.play()
+    
+    def enable_controls(self, setting=True):
+        self.controls_enabled = setting
             
     def keyPressEvent(self, event):
         print(event.key())
         action = self.controls.get(event.key())
-        if action:
+        if action and self.controls_enabled:
             action()
 
     def closeEvent(self, event):
