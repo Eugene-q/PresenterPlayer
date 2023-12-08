@@ -3,6 +3,7 @@
 import audioread
 import pdb
 import json
+import keyboard
 import sys
 import os
 from collections import deque
@@ -377,8 +378,9 @@ class SongListWidget(QtWidgets.QWidget):
                                             new_name+SONG_LIST_EXTENSION)
         new_save_file_path = os.path.abspath(new_save_file_path) 
         old_save_file_path = self.save_file_path                                   
-        #print('OLD PATH:', self.save_file_path)
-        #print('NEW PATH:', new_save_file_path)
+        if new_save_file_path == old_save_file_path:
+            self.normal_mode()
+            return
         self.save_as(new_save_file_path)
         os.remove(old_save_file_path)
         rmtree(self.get_playback_dir_path(old_save_file_path))
@@ -809,6 +811,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.waveform = []
         
         self.options = OptionsDialog(OPTIONS_FILE_PATH, self)
+        self.presentation_mode = False
+        self.enable_presentation_mode()
         
         self.end_of_playback.connect(self.play_next)
         
@@ -1427,12 +1431,36 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def enable_controls(self, setting=True):
         self.controls_enabled = setting
+    
+    def keypress_handler(self,):
+        def on_press(key):
+            print('pressed', key.name)
+        on_press_up_hook = keyboard.on_press_key('up', self.play_previous)
+        on_press_down_hook = keyboard.on_press_key('down', self.play_next)
+        on_press_tab_hook = keyboard.on_press_key('tab', self.play_pause)
+        print('waiting for q')
+        keyboard.wait(hotkey='q')
+        print('PRES MODE OFF')
+        keyboard.unhook_all()
+        song = self.list.song(self.list.playing)
+        song.normal_mode()
+        self.sliderSongVol.clearFocus()
+        self.enable_presentation_mode(False)
+    
+    def enable_presentation_mode(self, enable=True):
+        self.presentation_mode = enable
+        if enable:
+            self.key_thread = Thread(target=self.keypress_handler)
+            self.key_thread.start()
+            print('PRES MODE STARTED')
             
     def keyPressEvent(self, event):
-        print(event.key())
-        action = self.controls.get(event.key())
-        if action and self.controls_enabled:
-            action()
+        print('KEY PRESS', end=' ')
+        if not self.presentation_mode:
+            print(event.key())
+            action = self.controls.get(event.key())
+            if action and self.controls_enabled:
+                action()
 
     def closeEvent(self, event):
         self.options.save()
