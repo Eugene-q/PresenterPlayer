@@ -812,7 +812,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.options = OptionsDialog(OPTIONS_FILE_PATH, self)
         self.presentation_mode = False
-        self.enable_presentation_mode()
+        #self.enable_presentation_mode()
         
         self.end_of_playback.connect(self.play_next)
         
@@ -829,6 +829,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonAutomations.clicked.connect(self.show_automations)
         
         self.buttonReset.clicked.connect(self.reset_song_settings)
+        
+        self.buttonPresentationMode.clicked.connect(self.enable_presentation_mode)
         
         self.sliderMasterVol.valueChanged.connect(self.master_vol_change)
         self.sliderSongVol.valueChanged.connect(self.song_vol_change)
@@ -1450,9 +1452,22 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def enable_presentation_mode(self, enable=True):
         self.presentation_mode = enable
         if enable:
-            self.key_thread = Thread(target=self.keypress_handler)
-            self.key_thread.start()
-            print('PRES MODE STARTED')
+            self.buttonPresentationMode.setChecked(True)
+            on_press_up_hook = keyboard.on_press_key('up', self.play_previous)
+            on_press_down_hook = keyboard.on_press_key('down', self.play_next)
+            on_press_tab_hook = keyboard.on_press_key('tab', self.play_pause)
+            # self.key_thread = Thread(target=self.keypress_handler)
+#             self.key_thread.start()
+#             print('PRES MODE STARTED')
+        else:
+            self.buttonPresentationMode.setChecked(False)
+            print('PRES MODE OFF')
+            keyboard.unhook_all()
+            
+    def disable_presentation_mode(self):
+        print('PRES MODE OFF')
+        keyboard.unhook_all()
+        self.enable_presentation_mode(False)
             
     def keyPressEvent(self, event):
         print('KEY PRESS', end=' ')
