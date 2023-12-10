@@ -109,11 +109,13 @@ class OptionsDialog(QtWidgets.QDialog):
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
         self.player.show_automations(self.always_show_automations)
+        self.player.setFocus()
         self.hide()
         
     def cancel(self):
         self.sliderSignalsVol.setValue(int(self.signals_volume * 100))
         self.checkBoxEnableSignals.setChecked(self.signals_enabled)
+        self.player.setFocus()
         self.hide()
     
     def test_signal_vol(self,):
@@ -271,6 +273,7 @@ class SongListWidget(QtWidgets.QWidget):
                                                         '.', 
                                                         'Music Files (*.mp3 *.wav)',
                                                         )[0]
+                self.player.setFocus()
                 filenames = []
                 current_playback_filenames = self.get_playback_dir_filenames()
                 #print('Playback filenames:', current_playback_filenames)
@@ -409,6 +412,7 @@ class SongListWidget(QtWidgets.QWidget):
         if not save_file_path:
             save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
                                      os.path.join('.', DEFAULT_SAVE_DIR), 'SongList File (*.sl)')[0]
+            self.player.setFocus()
         if save_file_path == self.save_file_path:
             print('called SAVE')
             self.save()
@@ -454,10 +458,12 @@ class SongListWidget(QtWidgets.QWidget):
                                                     '.', 
                                                     'SongList File (*.sl)',
                                                     )[0]
+            self.player.setFocus()
         if load_file_path:
             with open(load_file_path, 'r') as load_file:
                 songs_info = json.load(load_file)
-            self.clear()
+            if not self.is_empty():
+                self.clear()
             if songs_info:
                 self.add_songs(songs_info=songs_info)
                 self.playing = 0
@@ -470,9 +476,11 @@ class SongListWidget(QtWidgets.QWidget):
             self.set_saved()
             
     def clear(self):
-        if not self.saved:
-            if self.show_message_box(CLEAR_WARNING) != OK:
-                return
+        #if not self.saved:
+        if self.show_message_box(CLEAR_WARNING) != OK:
+            self.player.setFocus()
+            return
+        self.player.setFocus()
         if not self.is_empty():
             self.player.eject()
             self.player.enable(False)
@@ -883,8 +891,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if self.list.is_empty():
             self.enable(False)
         else:
-            self.load(self.list.song(self.list.playing)) 
-            
+            self.load(self.list.song(self.list.playing))
+        self.setFocus()
         
     def _play(self):
         self.play_signal()
