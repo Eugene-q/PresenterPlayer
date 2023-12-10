@@ -757,7 +757,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.controls = {QtCore.Qt.Key_Escape: self.play_next,
                          QtCore.Qt.Key_Shift: self.play_next,
-                         QtCore.Qt.Key_Tab: self.play_pause,
+                         #QtCore.Qt.Key_Tab: self.play_pause, #tab_shortcut вместо этого.
                          QtCore.Qt.Key_Space: self.play_pause,
                          QtCore.Qt.Key_Up: self.vol_up, 
                          QtCore.Qt.Key_Down: self.vol_down,
@@ -880,6 +880,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.list = SongListWidget(self)
         self.layoutSongList.addWidget(self.list)
+        
+        tab_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Tab), self)
+        tab_shortcut.activated.connect(self.play_pause)
         
         if not os.path.exists(self.options.last_playlist_path):
             self.list.save_as(DEFAULT_SAVE_DIR + 
@@ -1441,7 +1444,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         action = self.controls.get(event.key())
         if action and self.controls_enabled:
             action()
-
+    
     def closeEvent(self, event):
         self.options.save()
         self.deny_playback_automation()
