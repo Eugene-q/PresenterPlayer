@@ -181,8 +181,8 @@ class SongWidget(QtWidgets.QWidget):
         self.name = self.lineNewSongName.text()
         self.labelSongName.setText(self.name)
         self.song_list.set_saved(False)
-        self.song_list.player.enable_controls()
         self.normal_mode()
+        self.song_list.player.enable_controls()
         
     def normal_mode(self):
         self.lineNewSongName.clearFocus()
@@ -1434,44 +1434,27 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def enable_controls(self, setting=True):
         self.controls_enabled = setting
     
-    def keypress_handler(self,):
-        def on_press(key):
-            print('pressed', key.name)
-        on_press_up_hook = keyboard.on_press_key('up', self.play_previous)
-        on_press_down_hook = keyboard.on_press_key('down', self.play_next)
-        on_press_tab_hook = keyboard.on_press_key('tab', self.play_pause)
-        print('waiting for q')
-        keyboard.wait(hotkey='q')
-        print('PRES MODE OFF')
-        keyboard.unhook_all()
-        song = self.list.song(self.list.playing)
-        song.normal_mode()
-        self.sliderSongVol.clearFocus()
-        self.enable_presentation_mode(False)
-    
     def enable_presentation_mode(self, enable=True):
         self.presentation_mode = enable
         if enable:
             self.buttonPresentationMode.setChecked(True)
-            on_press_up_hook = keyboard.on_press_key('up', self.play_previous)
-            on_press_down_hook = keyboard.on_press_key('down', self.play_next)
-            on_press_tab_hook = keyboard.on_press_key('tab', self.play_pause)
-            # self.key_thread = Thread(target=self.keypress_handler)
-#             self.key_thread.start()
-#             print('PRES MODE STARTED')
+            self.on_press_hook = keyboard.on_press(self.keyPressEvent)
         else:
             self.buttonPresentationMode.setChecked(False)
             print('PRES MODE OFF')
-            keyboard.unhook_all()
-            
-    def disable_presentation_mode(self):
-        print('PRES MODE OFF')
-        keyboard.unhook_all()
-        self.enable_presentation_mode(False)
-            
+            keyboard.unhook(self.on_press_hook)
+                    
     def keyPressEvent(self, event):
         print('KEY PRESS', end=' ')
-        if not self.presentation_mode:
+        if self.presentation_mode:
+            print(event.name)
+            if event.name == 'up':
+                self.play_previous()
+            elif event.name == 'down':
+                self.play_next()
+            elif event.name == 'tab':
+                self.play_pause()
+        else:
             print(event.key())
             action = self.controls.get(event.key())
             if action and self.controls_enabled:
@@ -1526,6 +1509,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             if song:
                 name = song.name
             print(index, name)
+        print('Controls enabled:', self.controls_enabled)
 
 
 def main():
