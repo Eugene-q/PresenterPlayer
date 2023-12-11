@@ -887,8 +887,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.list = SongListWidget(self)
         self.layoutSongList.addWidget(self.list)
         
-        tab_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Tab), self)
-        tab_shortcut.activated.connect(self.play_pause)
+        self.tab_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Tab), self)
+        self.tab_shortcut.activated.connect(self.play_pause)
         
         if not os.path.exists(self.options.last_playlist_path):
             self.list.save_as(DEFAULT_SAVE_DIR + 
@@ -1449,27 +1449,31 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.presentation_mode = enable
         if enable:
             self.buttonPresentationMode.setChecked(True)
-            self.on_press_hook = keyboard.on_press(self.keyPressEvent)
+            self.on_press_hook = keyboard.on_press(self.presentation_controls)
+            self.tab_shortcut.setEnabled(False)
         else:
             self.buttonPresentationMode.setChecked(False)
             print('PRES MODE OFF')
             keyboard.unhook(self.on_press_hook)
+            self.tab_shortcut.setEnabled(True)
+            self.setFocus()
                     
     def keyPressEvent(self, event):
         print('KEY PRESS', end=' ')
-        if self.presentation_mode:
-            print(event.name)
-            if event.name == 'up':
-                self.play_previous()
-            elif event.name == 'down':
-                self.play_next()
-            elif event.name == 'tab':
-                self.play_pause()
-        else:
+        if not self.presentation_mode:
             print(event.key())
             action = self.controls.get(event.key())
             if action and self.controls_enabled:
                 action()
+            
+    def presentation_controls(self, event):
+        print(event.name)
+        if event.name == 'up':
+            self.play_previous()
+        elif event.name == 'down':
+            self.play_next()
+        elif event.name == 'tab':
+            self.play_pause()
                 
     def closeEvent(self, event):
         self.options.save()
@@ -1521,6 +1525,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 name = song.name
             print(index, name)
         print('Controls enabled:', self.controls_enabled)
+        print('Presentation mode:', self.presentation_mode)
 
 
 def main():
