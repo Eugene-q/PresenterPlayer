@@ -387,12 +387,12 @@ class SongListWidget(QtWidgets.QWidget):
     def save_list_name(self):
         new_name = self.lineListHeader.text()
         new_save_file_path = os.path.join(os.path.dirname(self.save_file_path),
-                                            new_name+SONG_LIST_EXTENSION)
-        new_save_file_path = os.path.abspath(new_save_file_path) 
-        old_save_file_path = self.save_file_path                                   
+                                            new_name+SONG_LIST_EXTENSION).lower()
+        old_save_file_path = self.save_file_path.lower()                                
         if new_save_file_path == old_save_file_path:
             self.normal_mode()
             return
+        new_save_file_path = os.path.abspath(new_save_file_path)
         self.save_as(new_save_file_path)
         os.remove(old_save_file_path)
         rmtree(self.get_playback_dir_path(old_save_file_path))
@@ -432,7 +432,7 @@ class SongListWidget(QtWidgets.QWidget):
             #if save_file_path:
             songs_info = []
             if os.path.exists(music_dir_path):
-                rmtree(music_dir_path)
+                rmtree(music_dir_path)#TODO Предупреждение, что такой список уже есть.
             os.mkdir(music_dir_path)
             self.playback_dir = music_dir_path
             for song in self.list.get_all_songs():
