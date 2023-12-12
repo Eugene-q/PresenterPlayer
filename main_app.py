@@ -39,6 +39,9 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'signals_enabled': False,
                    'signals_volume': 50,
                    'always_show_automations': False,
+                   'autoplay_fforw': False,
+                   'autoplay_rew': False,
+                   'clicker_enabled_in_list_mode': True,
                 }
 
 CLEAR_WARNING = 'Все несохранённые изменения будут утеряны! Очистить список?'
@@ -102,10 +105,16 @@ class OptionsDialog(QtWidgets.QDialog):
         self.signals_volume = self.sliderSignalsVol.value() / 100
         self.always_show_automations = self.checkBoxShowAutomations.isChecked()
         self.last_playlist_path = self.player.list.save_file_path
+        self.autoplay_fforw = self.checkBoxAutoplayFforw.isChecked()
+        self.autoplay_rew = self.checkBoxAutoplayRew.isChecked()
+        self.clicker_enabled_in_list_mode = self.checkBoxKeyControlsEnable.isChecked()
         options_set = {'last_playlist_path': self.last_playlist_path,
                        'signals_enabled': self.signals_enabled,
                        'signals_volume': self.signals_volume,
                        'always_show_automations': self.always_show_automations,
+                       'autoplay_fforw': self.autoplay_fforw,
+                       'autoplay_rew': self.autoplay_rew,
+                       'clicker_enabled_in_list_mode': self.clicker_enabled_in_list_mode,
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
@@ -978,7 +987,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if next_song:
             self.eject()
             self.load(next_song)
-            if self.sender() == self:
+            if self.sender() == self or self.options.autoplay_fforw:
                 self._play()  
     
     def get_next_song(self):
@@ -1011,6 +1020,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if previous_song:
             self.eject()   
             self.load(previous_song)
+            if self.options.autoplay_rew:
+                self._play()
     
     def deny_playback_automation(self): #Для отключения обновления слайдером
         self.allow_automations_update(playback=False, volume=None)
@@ -1460,7 +1471,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     
     def keyPressEvent(self, event):
         print('KEY PRESS', end=' ')
-        if not self.presentation_mode:
+        if not self.presentation_mode and self.options.clicker_enabled_in_list_mode:
             print(event.key())
             action = self.controls.get(event.key())
             if action and self.controls_enabled:
