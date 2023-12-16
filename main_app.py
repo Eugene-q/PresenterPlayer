@@ -97,34 +97,42 @@ class OptionsDialog(QtWidgets.QDialog):
                 options_set = json.load(options_file) or DEFAULT_OPTIONS
         else:
             options_set = DEFAULT_OPTIONS
-        for option, value in options_set.items():
-            setattr(self, option, value)
+        self.last_playlist_path = options_set.get('last_playlist_path')
+        self.signals_volume = options_set.get('signals_volume')
+        self.checkBoxEnableSignals.setChecked(options_set.get('signals_enabled'))
+        self.checkBoxShowAutomations.setChecked(options_set.get('always_show_automations'))
+        self.checkBoxAutoplayFforw.setChecked(options_set.get('autoplay_fforw'))
+        self.checkBoxAutoplayRew.setChecked(options_set.get('autoplay_rew'))
+        self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
+        # for option, value in options_set.items():
+#             setattr(self, option, value) #TODO ОБНОВИТЬ СОСТОЯНИЕ ЭЛЕМЕНТОВ УПРАВЛЕНИЯ!
+#                                         # не дублировать состояние элементов управления в атрибутах
 
     def save(self):
-        self.signals_enabled = self.checkBoxEnableSignals.isChecked()
-        self.signals_volume = self.sliderSignalsVol.value() / 100
-        self.always_show_automations = self.checkBoxShowAutomations.isChecked()
         self.last_playlist_path = self.player.list.save_file_path
-        self.autoplay_fforw = self.checkBoxAutoplayFforw.isChecked()
-        self.autoplay_rew = self.checkBoxAutoplayRew.isChecked()
-        self.clicker_enabled_in_list_mode = self.checkBoxKeyControlsEnable.isChecked()
+        #self.signals_enabled = self.checkBoxEnableSignals.isChecked()
+        self.signals_volume = self.sliderSignalsVol.value() / 100
+        # self.always_show_automations = self.checkBoxShowAutomations.isChecked()
+#         self.autoplay_fforw = self.checkBoxAutoplayFforw.isChecked()
+#         self.autoplay_rew = self.checkBoxAutoplayRew.isChecked()
+#         self.clicker_enabled_in_list_mode = self.checkBoxKeyControlsEnable.isChecked()
         options_set = {'last_playlist_path': self.last_playlist_path,
-                       'signals_enabled': self.signals_enabled,
                        'signals_volume': self.signals_volume,
-                       'always_show_automations': self.always_show_automations,
-                       'autoplay_fforw': self.autoplay_fforw,
-                       'autoplay_rew': self.autoplay_rew,
-                       'clicker_enabled_in_list_mode': self.clicker_enabled_in_list_mode,
+                       'signals_enabled': self.checkBoxEnableSignals.isChecked(),
+                       'always_show_automations': self.checkBoxShowAutomations.isChecked(),
+                       'autoplay_fforw': self.checkBoxAutoplayFforw.isChecked(),
+                       'autoplay_rew': self.checkBoxAutoplayRew.isChecked(),
+                       'clicker_enabled_in_list_mode': self.checkBoxKeyControlsEnable.isChecked(),
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
-        self.player.show_automations(self.always_show_automations)
+        self.player.show_automations(self.checkBoxShowAutomations.isChecked())
         self.player.setFocus()
         self.hide()
         
     def cancel(self):
         self.sliderSignalsVol.setValue(int(self.signals_volume * 100))
-        self.checkBoxEnableSignals.setChecked(self.signals_enabled)
+        self.checkBoxEnableSignals.setChecked(self.checkBoxEnableSignals.isChecked())
         self.player.setFocus()
         self.hide()
     
@@ -987,7 +995,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if next_song:
             self.eject()
             self.load(next_song)
-            if self.sender() == self or self.options.autoplay_fforw:
+            if self.sender() == self or self.options.checkBoxAutoplayFforw.isChecked():
                 self._play()  
     
     def get_next_song(self):
@@ -1020,7 +1028,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if previous_song:
             self.eject()   
             self.load(previous_song)
-            if self.options.autoplay_rew:
+            if self.options.checkBoxAutoplayRew.isChecked():
                 self._play()
     
     def deny_playback_automation(self): #Для отключения обновления слайдером
@@ -1241,7 +1249,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.change_range((song.start_pos, song.end_pos))
                 #self.song_vol_change(song.volume, move_slider=True)
                 self.sliderSongVol.setValue(song.volume)
-                if song.faded or song.range_limited or self.options.always_show_automations:
+                if song.faded or song.range_limited or self.options.checkBoxShowAutomations.isChecked():
                     self.show_automations()
                     if self.fade_raitos[0]:
                         self.sliderSongVol.setValue(0)
@@ -1446,7 +1454,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def play_signal(self, enabled=None, volume=None):
         if enabled == None:
-            enabled = self.options.signals_enabled
+            enabled = self.options.checkBoxEnableSignals.isChecked()
         if volume == None:
             volume = self.options.signals_volume
         if enabled:
@@ -1471,7 +1479,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     
     def keyPressEvent(self, event):
         print('KEY PRESS', end=' ')
-        if not self.presentation_mode and self.options.clicker_enabled_in_list_mode:
+        if not self.presentation_mode and self.options.checkBoxKeyControlsEnable.isChecked():
             print(event.key())
             action = self.controls.get(event.key())
             if action and self.controls_enabled:

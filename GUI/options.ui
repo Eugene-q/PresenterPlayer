@@ -157,35 +157,6 @@
      <string>Всегда отображать ручки автоматизации</string>
     </property>
    </widget>
-   <widget class="QFrame" name="frame_3">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>301</width>
-      <height>80</height>
-     </rect>
-    </property>
-    <property name="frameShape">
-     <enum>QFrame::StyledPanel</enum>
-    </property>
-    <property name="frameShadow">
-     <enum>QFrame::Raised</enum>
-    </property>
-    <widget class="QCheckBox" name="checkBoxShowAutomations_2">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>10</y>
-       <width>291</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Всегда отображать ручки автоматизации</string>
-     </property>
-    </widget>
-   </widget>
   </widget>
   <widget class="QFrame" name="frame_4">
    <property name="geometry">
@@ -206,7 +177,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>40</y>
+      <y>60</y>
       <width>291</width>
       <height>20</height>
      </rect>
@@ -232,7 +203,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>60</y>
+      <y>40</y>
       <width>291</width>
       <height>20</height>
      </rect>

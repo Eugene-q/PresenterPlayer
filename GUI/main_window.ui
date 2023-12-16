@@ -461,10 +461,49 @@ background-color: DodgerBlue;
             </property>
             <item>
              <layout class="QVBoxLayout" name="verticalLayout_4">
+              <property name="rightMargin">
+               <number>4</number>
+              </property>
+              <item>
+               <spacer name="verticalSpacer_5">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::Fixed</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>12</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
               <item>
                <widget class="QToolButton" name="buttonPresentationMode">
+                <property name="styleSheet">
+                 <string notr="true">::pressed
+{
+background-color: Red;
+}
+::checked
+{
+background-color: Red;
+}</string>
+                </property>
                 <property name="text">
                  <string>Презентация</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="../assets/icons.qrc">
+                  <normaloff>:/player/icons/presentation_mode.png</normaloff>:/player/icons/presentation_mode.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
                 </property>
                 <property name="checkable">
                  <bool>true</bool>
