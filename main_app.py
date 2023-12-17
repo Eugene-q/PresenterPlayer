@@ -104,18 +104,10 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxAutoplayFforw.setChecked(options_set.get('autoplay_fforw'))
         self.checkBoxAutoplayRew.setChecked(options_set.get('autoplay_rew'))
         self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
-        # for option, value in options_set.items():
-#             setattr(self, option, value) #TODO ОБНОВИТЬ СОСТОЯНИЕ ЭЛЕМЕНТОВ УПРАВЛЕНИЯ!
-#                                         # не дублировать состояние элементов управления в атрибутах
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
-        #self.signals_enabled = self.checkBoxEnableSignals.isChecked()
         self.signals_volume = self.sliderSignalsVol.value() / 100
-        # self.always_show_automations = self.checkBoxShowAutomations.isChecked()
-#         self.autoplay_fforw = self.checkBoxAutoplayFforw.isChecked()
-#         self.autoplay_rew = self.checkBoxAutoplayRew.isChecked()
-#         self.clicker_enabled_in_list_mode = self.checkBoxKeyControlsEnable.isChecked()
         options_set = {'last_playlist_path': self.last_playlist_path,
                        'signals_volume': self.signals_volume,
                        'signals_enabled': self.checkBoxEnableSignals.isChecked(),
