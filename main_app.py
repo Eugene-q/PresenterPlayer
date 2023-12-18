@@ -20,20 +20,24 @@ from threading import active_count as active_threads
 #pyrcc5 -o icons.py icons.qrc
 VALID_SYMBOL_CODES = (tuple(chr(s) for s in range(1040, 1104)) + 
                         tuple(chr(s) for s in range(128)) + ('ё', 'Ё'))
+                        
+BASE_DIR = os.path.dirname(__file__)
+USER_HOME_DIR = os.path.expanduser('~')
+USER_MUSIC_DIR = os.path.join(USER_HOME_DIR, 'Music')
 
-SONG_ITEM_UI_PATH = 'GUI/songitem.ui'
-SONG_LIST_UI_PATH = 'GUI/songList.ui'
-MAIN_WINDOW_UI_PATH = 'GUI/main_window.ui'
-OPTIONS_DIALOG_UI_PATH = 'GUI/options.ui'
-DEFAULT_SIGNAL_PATH = 'assets/signal.wav'
+SONG_ITEM_UI_PATH = os.path.join(BASE_DIR, 'GUI/songitem.ui')
+SONG_LIST_UI_PATH = os.path.join(BASE_DIR, 'GUI/songList.ui')
+MAIN_WINDOW_UI_PATH = os.path.join(BASE_DIR, 'GUI/main_window.ui')
+OPTIONS_DIALOG_UI_PATH = os.path.join(BASE_DIR, 'GUI/options.ui')
+DEFAULT_SIGNAL_PATH = os.path.join(BASE_DIR, 'assets/signal.wav')
 
 mixer.init()
-DEFAULT_PLAYBACK_DIR = 'song_lists/Новый список воспроизведения_music/'
-DEFAULT_SAVE_DIR = 'song_lists/'
+DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/Новый список воспроизведения_music/')
+DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/')
 SONG_LIST_EXTENSION = '.sl'
 DEFAULT_SONGLIST_NAME = 'Новый список воспроизведения'
 
-OPTIONS_FILE_PATH = 'assets/options.json'
+OPTIONS_FILE_PATH = os.path.join(BASE_DIR, 'assets/options.json')
 DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, 
                                             DEFAULT_SONGLIST_NAME + SONG_LIST_EXTENSION),
                    'signals_enabled': False,
@@ -280,7 +284,7 @@ class SongListWidget(QtWidgets.QWidget):
             if not filenames:           # Добавление песен по кнопке +
                 filepaths = QtWidgets.QFileDialog.getOpenFileNames(self, 
                                                         'Добавить дорожки', 
-                                                        '.', 
+                                                        USER_MUSIC_DIR, 
                                                         'Music Files (*.mp3 *.wav)',
                                                         )[0]
                 self.player.setFocus()
@@ -466,7 +470,7 @@ class SongListWidget(QtWidgets.QWidget):
         if not load_file_path:
             load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
                                                     'Загрузка списка песен', 
-                                                    '.', 
+                                                    os.path.join(USER_MUSIC_DIR, 'song_lists'), 
                                                     'SongList File (*.sl)',
                                                     )[0]
             self.player.setFocus()

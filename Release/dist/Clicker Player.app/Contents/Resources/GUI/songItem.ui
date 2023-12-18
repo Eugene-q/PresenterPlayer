@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SongItem</class>
+ <widget class="QWidget" name="SongItem">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>460</width>
+    <height>32</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>460</width>
+    <height>32</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>1200</width>
+    <height>32</height>
+   </size>
+  </property>
+  <layout class="QHBoxLayout" name="layoutSongItem">
+   <property name="spacing">
+    <number>2</number>
+   </property>
+   <property name="sizeConstraint">
+    <enum>QLayout::SetMaximumSize</enum>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QToolButton" name="buttonPlay">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="focusPolicy">
+      <enum>Qt::NoFocus</enum>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">::pressed
+{
+background-color: Red;
+}
+::checked
+{
+background-color: Red;
+}</string>
+     </property>
+     <property name="text">
+      <string>P</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../assets/icons.qrc">
+       <normaloff>:/song/icons/play.png</normaloff>:/song/icons/play.png</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>14</width>
+       <height>14</height>
+      </size>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="labelSongName">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>226</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>5000</width>
+       <height>20</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="text">
+      <string>Название песни</string>
+     </property>
+     <property name="indent">
+      <number>-1</number>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::NoTextInteraction</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="lineNewSongName">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="focusPolicy">
+      <enum>Qt::NoFocus</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="buttonRepeat">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="focusPolicy">
+      <enum>Qt::NoFocus</enum>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">::pressed
+{
+background-color: DodgerBlue;
+}
+::checked
+{
+background-color: DodgerBlue;
+}</string>
+     </property>
+     <property name="text">
+      <string>R</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../assets/icons.qrc">
+       <normaloff>:/song/icons/repeat_song.png</normaloff>:/song/icons/repeat_song.png</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>14</width>
+       <height>14</height>
+      </size>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="buttonMute">
+     <property name="toolTip">
+      <string>не играть</string>
+     </property>
+     <property name="toolTipDuration">
+      <number>3</number>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">::pressed
+{
+background-color: DodgerBlue;
+}
+::checked
+{
+background-color: DodgerBlue;
+}</string>
+     </property>
+     <property name="text">
+      <string>M</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../assets/icons.qrc">
+       <normaloff>:/song/icons/vol_off.png</normaloff>:/song/icons/vol_off.png</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>14</width>
+       <height>14</height>
+      </size>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="buttonDelete">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="focusPolicy">
+      <enum>Qt::NoFocus</enum>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">::pressed
+{
+background-color: DodgerBlue;
+}
+::checked
+{
+background-color: DodgerBlue;
+}</string>
+     </property>
+     <property name="text">
+      <string>D</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../assets/icons.qrc">
+       <normaloff>:/song/icons/delete.png</normaloff>:/song/icons/delete.png</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>14</width>
+       <height>14</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="../assets/icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>
