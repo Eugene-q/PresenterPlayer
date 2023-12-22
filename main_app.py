@@ -480,7 +480,7 @@ class SongListWidget(QtWidgets.QWidget):
                 self.playing = 0
                 self.selected = 0
                 self.list.setCurrentRow(0)
-                #self.player.load(self.song(self.playing))
+                self.player.load(self.song(self.playing))
                 self.player.enable()
             self.save_file_path = load_file_path
             self.playback_dir = self.get_playback_dir_path(load_file_path)
@@ -823,6 +823,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #self.signals_enabled = False
         self.signal = mixer.Sound(DEFAULT_SIGNAL_PATH)
         self.state = STOPED
+        self.enabled = True
         self.repeat_mode = PLAY_ALL
         self.prev_repeat_mode = self.repeat_mode
         self.waveform = []
@@ -897,7 +898,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.layoutSongList.addWidget(self.list)
         
         self.tab_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Tab), self)
-        self.tab_shortcut.activated.connect(self.play_pause)
+        self.tab_shortcut.activated.connect(self.play_pause)#пока костыль в play_pause для отключения ТАБ при
+                                                            #пустом списке.
+        # попытка сгенерировать событие нажатия ТАБ и передать его в keyPressEvent, чтобы обрабатывалось
+        # вместе с другими клавишами. Непонятно, почему ТАБ не генерит keyPressEvent нормально?
+        #self.tab_shortcut.activated.connect(lambda: self.keyPressEvent(
+                                                   # QtGui.QKeyEvent(type=QtCore.QEvent.KeyPress, 
+                                                                    #key=QtCore.Qt.Key_Tab,
+                                                                   # modifiers=[])
+                                                    #))
         
         if not os.path.exists(self.options.last_playlist_path):
             self.list.save_as(DEFAULT_SAVE_DIR + 
@@ -957,6 +966,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('STOPED...')
         
     def play_pause(self, event=None):
+        if not self.enabled:
+            return
         self.play_signal()
         if self.sender():
             sender = self.sender().parent()
@@ -1430,6 +1441,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self._stop()
     
     def enable(self, state=True, just_playback=False):
+        self.enabled = state
         self.buttonStop.setEnabled(state)
         self.buttonPlay.setEnabled(state)
         self.buttonPause.setEnabled(state)
@@ -1471,7 +1483,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     
     def keyPressEvent(self, event):
         print('KEY PRESS', end=' ')
-        if not self.presentation_mode and self.options.checkBoxKeyControlsEnable.isChecked():
+        if (not self.presentation_mode and 
+                self.options.checkBoxKeyControlsEnable.isChecked() and
+                self.enabled
+                ):
             print(event.key())
             action = self.controls.get(event.key())
             if action and self.controls_enabled:
