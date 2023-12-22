@@ -6,6 +6,7 @@ import json
 import keyboard
 import sys
 import os
+import codecs
 from collections import deque
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
@@ -17,6 +18,7 @@ from time import sleep
 from threading import Thread, get_ident
 from threading import active_count as active_threads
 
+#sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
 #pyrcc5 -o icons.py icons.qrc
 VALID_SYMBOL_CODES = (tuple(chr(s) for s in range(1040, 1104)) + 
                         tuple(chr(s) for s in range(128)) + ('ё', 'Ё'))
@@ -32,10 +34,10 @@ OPTIONS_DIALOG_UI_PATH = os.path.join(BASE_DIR, 'GUI/options.ui')
 DEFAULT_SIGNAL_PATH = os.path.join(BASE_DIR, 'assets/signal.wav')
 
 mixer.init()
-DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/Новый список воспроизведения_music/')
+DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/new_songlist_music/')
 DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/')
 SONG_LIST_EXTENSION = '.sl'
-DEFAULT_SONGLIST_NAME = 'Новый список воспроизведения'
+DEFAULT_SONGLIST_NAME = 'New_songlist'
 
 OPTIONS_FILE_PATH = os.path.join(BASE_DIR, 'assets/options.json')
 DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, 
@@ -392,13 +394,17 @@ class SongListWidget(QtWidgets.QWidget):
         new_name = self.lineListHeader.text()
         new_save_file_path = os.path.join(os.path.dirname(self.save_file_path),
                                             new_name+SONG_LIST_EXTENSION).lower()
-        old_save_file_path = self.save_file_path.lower()                                
+        old_save_file_path = os.path.normpath(self.save_file_path.lower())
+        new_save_file_path = os.path.normpath(new_save_file_path.lower())
+        #print('OLD:', old_save_file_path)
+        #print('NEW:', new_save_file_path)
         if new_save_file_path == old_save_file_path:
             self.normal_mode()
             return
         new_save_file_path = os.path.abspath(new_save_file_path)
         self.save_as(new_save_file_path)
         os.remove(old_save_file_path)
+        self.player.eject()
         rmtree(self.get_playback_dir_path(old_save_file_path))
         self.normal_mode()
         self.buttonListHeader.setText(new_name)
@@ -440,7 +446,7 @@ class SongListWidget(QtWidgets.QWidget):
             os.mkdir(music_dir_path)
             self.playback_dir = music_dir_path
             for song in self.list.get_all_songs():
-                new_song_path = os.path.join(music_dir_path, song.name+'.'+song.file_type)
+                new_song_path = os.path.join(music_dir_path, song.name + song.file_type)
                 copyfile(song.path, new_song_path)
                 song.path = new_song_path
                 songs_info.append(self.list.get_song_info(song))
@@ -491,24 +497,22 @@ class SongListWidget(QtWidgets.QWidget):
             self.set_saved()
             
     def clear(self):
-        #if not self.saved:
-        if self.show_message_box(CLEAR_WARNING) != OK:
-            self.player.setFocus()
-            return
+        if self.show_message_box(CLEAR_WARNING) == OK:
+            if not self.is_empty():
+                self.player.eject()
+                self.player.enable(False)
+                self.list.clear()
+                self.set_saved(True)
         self.player.setFocus()
-        if not self.is_empty():
-            self.player.eject()
-            self.player.enable(False)
-            self.list.clear()
-            self.set_saved(True)
 
     def delete(self):
         if self.show_message_box(LIST_DELETE_WARNING) == OK:
+            self.player.eject()
             os.remove(self.save_file_path)
             rmtree(self.get_playback_dir_path(self.save_file_path))
             save_name = DEFAULT_SONGLIST_NAME
             while True:
-                save_file_path = DEFAULT_SAVE_DIR + save_name + SONG_LIST_EXTENSION
+                save_file_path = os.path.join(DEFAULT_SAVE_DIR, save_name + SONG_LIST_EXTENSION)
                 if os.path.exists(save_file_path):
                     with open(save_file_path) as save_file:
                         if json.load(save_file):
@@ -1271,6 +1275,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.show_automations(False)
         self.enable(False, just_playback=True)
         self.waveform = []
+        mixer.music.unload()
                     
     def min_sec_from_ms(self, milliseconds, show_ms=False):
         sec_float = milliseconds / 1000
