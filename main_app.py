@@ -199,12 +199,12 @@ class SongWidget(QtWidgets.QWidget):
         self.labelSongName.setText(self.name)
         self.song_list.set_saved(False)
         self.normal_mode()
-        self.song_list.player.enable_controls()
         
     def normal_mode(self):
         self.lineNewSongName.clearFocus()
         self.lineNewSongName.hide()
         self.labelSongName.show()
+        self.song_list.player.enable_controls()
     
     def set_playback_range(self, playback_range):
         self.start_pos, self.end_pos = playback_range
@@ -385,7 +385,7 @@ class SongListWidget(QtWidgets.QWidget):
                 if delete_index < self.playing:
                     self.playing -= 1
                 self.list.takeItem(delete_index)
-                if self.list.count() < 1:
+                if self.is_empty():
                     self.player.enable(False)
                 #     self.player.buttonSaveList.setDisabled(True)
                 self.set_saved(False)
@@ -409,6 +409,7 @@ class SongListWidget(QtWidgets.QWidget):
         self.normal_mode()
         self.buttonListHeader.setText(new_name)
         self.buttonListHeader.setToolTip(new_name)
+        self.player.load(self.song(self.playing))
     
     def save(self):
         if not self.saved:
@@ -530,6 +531,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.clear()
             self.set_saved(False)
             self.save()
+        self.player.setFocus()
             
     def set_row(self, target, playing=False):
         if type(target) != int:
@@ -591,7 +593,8 @@ class SongListWidget(QtWidgets.QWidget):
         self.lineListHeader.setFocus()
 
     def normal_mode(self):
-        self.player.enable_controls()
+        self.player.enable()
+        self.player.setFocus()
         self.buttonListHeader.show()
         self.lineListHeader.hide()
         self.lineListHeader.clearFocus()
@@ -975,6 +978,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def play_pause(self, event=None):
         if not self.enabled:
+            print('Controls disabled!')
             return
         self.play_signal()
         if self.sender():
@@ -1246,9 +1250,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 print('loaded: ', song.name[:20])
                 #print('start pos:', song.start_pos)
                 song.buttonDelete.setEnabled(True)
-                self.buttonPlay.setEnabled(True)
-                self.buttonPause.setEnabled(True)
-                self.buttonStop.setEnabled(True)
+                self.enable(just_playback=True)
+                #self.buttonPlay.setEnabled(True)
+                #self.buttonPause.setEnabled(True)
+                #self.buttonStop.setEnabled(True)
                 if song.repeat:
                     self.switch_repeat_to(REPEAT_ONE)
                 self.sliderPlaybackPos.setMaximum(song.length)
@@ -1454,6 +1459,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonStop.setEnabled(state)
         self.buttonPlay.setEnabled(state)
         self.buttonPause.setEnabled(state)
+        self.enable_controls(state)
         if not just_playback:
             self.buttonPrevious.setEnabled(state)
             self.buttonNext.setEnabled(state)
@@ -1491,7 +1497,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.setFocus()
                     
     def keyPressEvent(self, event):
-        print('KEY PRESS', end=' ')
+        print('KEY PRESS')
+        print('player.enabled:', self.enabled)
+        print('controls enabled:', self.controls_enabled)
         if (not self.presentation_mode and 
                 self.options.checkBoxKeyControlsEnable.isChecked() and
                 self.enabled
@@ -1514,6 +1522,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.options.save()
         self.deny_playback_automation()
         self.deny_volume_automation()
+        mixer.music.unload()
         event.accept()
     
     def resizeEvent(self, event):
