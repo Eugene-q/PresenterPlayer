@@ -473,48 +473,53 @@ class SongListWidget(QtWidgets.QWidget):
                   
     def load(self, load_file_path=''):
         print('LOAD SONGLIST')
-        if not self.saved:
-            if self.show_message_box(LOAD_WARNING) != OK:
-                return
-        if not load_file_path:
-            load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
-                                                    'Загрузка списка песен', 
-                                                    os.path.join(USER_MUSIC_DIR, 'song_lists'), 
-                                                    'SongList File (*.sl)',
-                                                    )[0]
-            self.player.setFocus()
-        if load_file_path:
-            print('file path:', load_file_path)   
-            with open(load_file_path, 'r') as load_file:
-                songs_info = json.load(load_file)
-            if not self.is_empty():
-                self.player._stop()
-                self.player.eject()
-                self.clear()            
-            if songs_info:
-                self.add_songs(songs_info=songs_info)
-                self.set_row(0, playing=True)
-                self.player.load(self.song(self.playing))
-                self.player.enable()
-            else:
-                self.player.enable(False)
-            self.save_file_path = load_file_path
-            self.playback_dir = self.get_playback_dir_path(load_file_path)
-            self.set_saved()
+        if self.is_empty() or self.show_message_box(LOAD_WARNING) == OK:
+            if not load_file_path:
+                load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
+                                                        'Загрузка списка песен', 
+                                                        os.path.join(USER_MUSIC_DIR, 'song_lists'), 
+                                                        'SongList File (*.sl)',
+                                                        )[0]
+                self.player.setFocus()
+            if load_file_path:
+                print('file path:', load_file_path)   
+                with open(load_file_path, 'r') as load_file:
+                    songs_info = json.load(load_file)
+                if not self.is_empty():
+                    self.player._stop()
+                    self.player.eject()
+                    self.clear(silent=True)            
+                if songs_info:
+                    self.add_songs(songs_info=songs_info)
+                    self.set_row(0, playing=True)
+                    self.player.load(self.song(self.playing))
+                    self.player.enable()
+                else:
+                    self.player.enable(False)
+                self.save_file_path = load_file_path
+                self.playback_dir = self.get_playback_dir_path(load_file_path)
+                self.set_saved()
             
-    def clear(self):
-        if self.show_message_box(CLEAR_WARNING) == OK:
-            if not self.is_empty():
-                self.player.eject()
-                self.player.enable(False)
-                self.list.clear()
-                self.set_saved(True)
+    def clear(self, silent=False):
+        result = False
+        if not self.is_empty():
+            if silent or self.show_message_box(CLEAR_WARNING) == OK:
+                if not self.is_empty():
+                    self.player.eject()
+                    self.player.enable(False)
+                    self.list.clear()
+                    self.set_saved(True)
+                result = True
+            else:
+                self.player.enable()
         self.player.setFocus()
+        return result
 
     def delete(self):
         if self.show_message_box(LIST_DELETE_WARNING) == OK:
             self.player._stop()
             self.player.eject()
+            self.clear(silent=True)
             os.remove(self.save_file_path)
             rmtree(self.get_playback_dir_path(self.save_file_path))
             save_name = DEFAULT_SONGLIST_NAME
@@ -534,7 +539,6 @@ class SongListWidget(QtWidgets.QWidget):
                 rmtree(music_dir_path)
             os.mkdir(music_dir_path)
             self.playback_dir = music_dir_path
-            self.clear()
             self.set_saved(False)
             self.save()
         self.player.setFocus()
@@ -1294,13 +1298,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
              print('song not loaded. No song to load! Current song:', self.list.song(self.list.selected))
     
     def eject(self):
-        #if  self.list.song(self.list.playing):
-        #self._stop()
         song = self.list.song(self.list.playing)
-        song.normal_mode()
-        song.buttonPlay.setIcon(self.PLAY_ICON)
-        song.buttonPlay.setChecked(False)
-        # self.list.song(self.list.playing) = None
+        if song:
+            song.normal_mode()
+            song.buttonPlay.setIcon(self.PLAY_ICON)
+            song.buttonPlay.setChecked(False)
         self.show_automations(False)
         self.enable(False, just_playback=True)
         self.waveform = []
