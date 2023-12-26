@@ -64,6 +64,7 @@ CHANGE_POS_STEP = 250
 STOPED = 0
 PLAYING = 1
 PAUSED = 2
+
 PLAY_ONE = 0
 REPEAT_ONE = 1
 PLAY_ALL = 2
@@ -471,6 +472,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.buttonSaveList.setEnabled(True)
                   
     def load(self, load_file_path=''):
+        print('LOAD SONGLIST')
         if not self.saved:
             if self.show_message_box(LOAD_WARNING) != OK:
                 return
@@ -482,17 +484,20 @@ class SongListWidget(QtWidgets.QWidget):
                                                     )[0]
             self.player.setFocus()
         if load_file_path:
+            print('file path:', load_file_path)   
             with open(load_file_path, 'r') as load_file:
                 songs_info = json.load(load_file)
             if not self.is_empty():
-                self.clear()
+                self.player._stop()
+                self.player.eject()
+                self.clear()            
             if songs_info:
                 self.add_songs(songs_info=songs_info)
-                self.playing = 0
-                self.selected = 0
-                self.list.setCurrentRow(0)
+                self.set_row(0, playing=True)
                 self.player.load(self.song(self.playing))
                 self.player.enable()
+            else:
+                self.player.enable(False)
             self.save_file_path = load_file_path
             self.playback_dir = self.get_playback_dir_path(load_file_path)
             self.set_saved()
@@ -508,6 +513,7 @@ class SongListWidget(QtWidgets.QWidget):
 
     def delete(self):
         if self.show_message_box(LIST_DELETE_WARNING) == OK:
+            self.player._stop()
             self.player.eject()
             os.remove(self.save_file_path)
             rmtree(self.get_playback_dir_path(self.save_file_path))
@@ -538,6 +544,7 @@ class SongListWidget(QtWidgets.QWidget):
             row = self.list.get_song_index(target)    
         else:
             row = target
+        print('SET ROW from', self.list.currentRow(), 'to', row)
         self.list.setCurrentRow(row)
         if playing:
             self.playing = row
@@ -548,6 +555,7 @@ class SongListWidget(QtWidgets.QWidget):
         song = self.song(row)
         self.selected = row
         print('SELECTED SONG INDEX:', self.selected)
+        print('Player_state:', self.player.state)
         if song:
             if self.player.state is STOPED:
                 if song == self.song(self.playing):
@@ -964,16 +972,19 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def _stop(self, event=None):
         self.play_signal()
         print('_STOP -- ')
-        song = self.list.song(self.list.playing)
-        self.start_pos =  song.start_pos
+        #self.start_pos =  song.start_pos
         mixer.music.stop()
         self.state = STOPED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
         self.sliderPlaybackPos.setValue(0)
-        song.buttonPlay.setIcon(self.PLAY_ICON)
-        song.buttonPlay.setChecked(False)
-        self.change_pos(song.start_pos)
+        song = self.list.song(self.list.playing)
+        if song:
+            song.buttonPlay.setIcon(self.PLAY_ICON)
+            song.buttonPlay.setChecked(False)
+            self.change_pos(song.start_pos)
+        else:
+            self.change_pos(0)
         print('STOPED...')
         
     def play_pause(self, event=None):
@@ -981,6 +992,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             print('Controls disabled!')
             return
         self.play_signal()
+        print('sender:', self.sender())
         if self.sender():
             sender = self.sender().parent()
             if type(sender) == SongWidget:
@@ -989,11 +1001,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     self.eject()
                     self.list.set_row(sender, playing=True)
                     self.load(sender)
-            elif (self.state == STOPED and
-                     self.list.song(self.list.playing) != self.list.song(self.list.selected)):
-                self.eject()
-                self.load(self.list.song(self.list.selected))
+            
         if self.state == STOPED:
+            if self.list.song(self.list.playing) != self.list.song(self.list.selected):
+                self.eject()
+                self.list.set_row(self.list.selected, playing=True)
+                self.load(self.list.song(self.list.selected))
             self._play()
             if self.sender() and self.sender() == self.buttonPause:
                 self._pause()
