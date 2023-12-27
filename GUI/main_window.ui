@@ -32,7 +32,11 @@
    <enum>Qt::DefaultContextMenu</enum>
   </property>
   <property name="windowTitle">
-   <string>ClickerPlayer</string>
+   <string>pPlayer</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../assets/icons.qrc">
+    <normaloff>:/player/icons/app_icon.png</normaloff>:/player/icons/app_icon.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="minimumSize">

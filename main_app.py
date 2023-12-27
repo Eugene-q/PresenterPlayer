@@ -1594,6 +1594,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)  # Новый экземпляр QApplication
+    app.setWindowIcon(QtGui.QIcon(os.path.join(BASE_DIR, 'app_icon.icns')))
     window = ClickerPlayerApp() 
     window.show()  # Показываем окно
     app.exec_()  # и запускаем приложение
