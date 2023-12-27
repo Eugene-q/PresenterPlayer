@@ -504,11 +504,10 @@ class SongListWidget(QtWidgets.QWidget):
         result = False
         if not self.is_empty():
             if silent or self.show_message_box(CLEAR_WARNING) == OK:
-                if not self.is_empty():
-                    self.player.eject()
-                    self.player.enable(False)
-                    self.list.clear()
-                    self.set_saved(True)
+                self.list.clear()
+                self.set_saved()
+                self.player.eject()
+                self.player.enable(False)
                 result = True
             else:
                 self.player.enable()
@@ -606,10 +605,10 @@ class SongListWidget(QtWidgets.QWidget):
 
     def normal_mode(self):
         self.player.enable()
-        self.player.setFocus()
         self.buttonListHeader.show()
         self.lineListHeader.hide()
         self.lineListHeader.clearFocus()
+        self.player.setFocus()
         
     def show_message_box(self, message, cancel=True):
         message_box = QtWidgets.QMessageBox()
@@ -1470,6 +1469,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self._stop()
     
     def enable(self, state=True, just_playback=False):
+        print('ENABLE:', state)
         self.enabled = state
         self.buttonStop.setEnabled(state)
         self.buttonPlay.setEnabled(state)
@@ -1481,10 +1481,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.buttonRepeat.setEnabled(state)
             self.buttonReset.setEnabled(state)
             self.sliderMasterVol.setEnabled(state)
+            self.sliderSongVol.setEnabled(state)
+            self.sliderFadeRange.setEnabled(state)
             self.sliderPlaybackPos.setEnabled(state)
             self.sliderPlaybackRange.setEnabled(state)
             self.buttonSetStart.setEnabled(state)
             self.buttonSetEnd.setEnabled(state)
+            self.buttonSetFadeIn.setEnabled(state)
+            self.buttonSetFadeOut.setEnabled(state)
+            self.buttonAutomations.setEnabled(state)
     
     def play_signal(self, enabled=None, volume=None):
         if enabled == None:
