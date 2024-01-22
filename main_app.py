@@ -10,8 +10,9 @@ import codecs
 from collections import deque
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
+from PyQt5.QtCore import QUrl
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QMediaPlaylist
 import assets.icons
-from pygame import mixer
 from superqt import QRangeSlider
 from shutil import copyfile, rmtree
 from time import sleep
@@ -33,7 +34,6 @@ MAIN_WINDOW_UI_PATH = os.path.join(BASE_DIR, 'GUI/main_window.ui')
 OPTIONS_DIALOG_UI_PATH = os.path.join(BASE_DIR, 'GUI/options.ui')
 DEFAULT_SIGNAL_PATH = os.path.join(BASE_DIR, 'assets/signal.wav')
 
-mixer.init()
 DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/new_songlist_music/')
 DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/')
 SONG_LIST_EXTENSION = '.sl'
@@ -829,8 +829,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                                      'text': 'Repeat all',
                                      'icon':  self.REPEAT_ALL_ICON,
                                   },
-                       }                 
+                       }                              
         self.save_dir = DEFAULT_SAVE_DIR
+        
+        self.deck_L = QMediaPlayer()
+        self.deck_R = QMediaPlayer()
             
         self.start_pos = 0
         self.allow_playback_update = True
@@ -843,7 +846,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.master_volume = self.START_VOLUME
         #self.signals_volume = 50
         #self.signals_enabled = False
-        self.signal = mixer.Sound(DEFAULT_SIGNAL_PATH)
+        self.signal = QMediaPlayer() #mixer.Sound(DEFAULT_SIGNAL_PATH)
+        #self.signal.setMedia(QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH)))
         self.state = STOPED
         self.enabled = True
         self.repeat_mode = PLAY_ALL
@@ -914,6 +918,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonSetStart.clicked.connect(self.set_range)
         self.buttonSetEnd.clicked.connect(self.set_range)
         
+        self.toolButton.clicked.connect(self.just_play)
+        
         self.show_automations(False)
         
         self.list = SongListWidget(self)
@@ -942,7 +948,18 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         else:
             self.load(self.list.song(self.list.playing))
         self.setFocus()
-        
+    
+    def just_play(self):
+        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
+        self.deck_R.setMedia(content)
+        #self.signal.setVolume(int(volume))
+        #print(self.signal.currentMedia(), self.signal.currentMedia().isNull())
+        #print(self.signal.currentMedia().request())
+        #print('error:', self.deck_L.errorString())
+        #print('signal available:', self.signal.isAudioAvailable())
+        self.deck_R.play()
+    
+       
     def _play(self):
         self.play_signal()
         song = self.list.song(self.list.playing)
@@ -953,30 +970,36 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song.buttonPlay.setChecked(True)
         
         self.allow_automations_update()
-        mixer.music.play(start=self.start_pos / 1000)
-        mixer.music.pause()
+        #mixer.music.play(start=self.start_pos / 1000)
+        #mixer.music.pause()
+        self.deck_L.setPosition(self.start_pos)
         self.start_playback_update()
         self.start_volume_update()
-        mixer.music.unpause()
+        self.deck_L.play()
+        #mixer.music.unpause()
         print('PLAYING...', self.list.playing,  song.name)
+        print('STATE:', self.deck_L.state())
            
     def _pause(self):
         song = self.list.song(self.list.playing)
         self.play_signal()
-        self.start_pos = self.start_pos + mixer.music.get_pos()
-        mixer.music.stop()
+        self.start_pos += self.deck_L.position()
+        self.deck_L.pause()
+        #mixer.music.stop()
         self.state = PAUSED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(True)
         song.buttonPlay.setIcon(self.PAUSED_ICON)
         song.buttonPlay.setChecked(True)
-        print('PAUSED...') 
+        print('PAUSED...')
+        print('STATE:', self.deck_L.state())
                 
     def _stop(self, event=None):
         self.play_signal()
         print('_STOP -- ')
         #self.start_pos =  song.start_pos
-        mixer.music.stop()
+        #mixer.music.stop()
+        self.deck_L.stop()
         self.state = STOPED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
@@ -989,6 +1012,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         else:
             self.change_pos(0)
         print('STOPED...')
+        print('STATE:', self.deck_L.state())
         
     def play_pause(self, event=None):
         if not self.enabled:
@@ -1014,7 +1038,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             if self.sender() and self.sender() == self.buttonPause:
                 self._pause()
         else:
-            if self.state == PAUSED or not mixer.music.get_busy():
+            if self.state == PAUSED or not self.deck_L.state() == PLAYING:
                 self._play()
             else:
                 self._pause()
@@ -1082,7 +1106,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                current_pos >= 0 and
                to_end_delta >= 0
                ):
-            current_pos = mixer.music.get_pos()
+            #current_pos = mixer.music.get_pos()
+            current_pos = self.deck_L.position()
             playback_pos = self.start_pos + current_pos
             to_end_delta = song.end_pos - playback_pos
             if playback_pos % 250 < 20:
@@ -1112,7 +1137,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         fade_volume = 0
         while (self.allow_volume_update and
                 self.state == PLAYING):
-            current_pos = mixer.music.get_pos()
+            #current_pos = mixer.music.get_pos()
+            current_pos = self.deck_L.position()
             playback_pos = self.start_pos + current_pos
             #to_end_delta = song.end_pos - playback_pos
             if playback_pos % 250 < 20:
@@ -1156,7 +1182,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     print('playback update force canceled')
                     self.allow_automations_update(playback=False, volume=None)
         song =  self.list.song(self.list.playing)
-        current_pos = mixer.music.get_pos()
+        #current_pos = mixer.music.get_pos()
+        current_pos = self.deck_L.position()
         playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
         to_end_delta = song.end_pos - playback_pos #дублировано для проверки перехода
         print('START PLAYBACK SLIDER')
@@ -1171,7 +1198,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             if self.volume_update_thread.is_alive():
                 self.allow_automations_update(playback=None, volume=False)
         song =  self.list.song(self.list.playing)
-        current_pos = mixer.music.get_pos()
+        #current_pos = mixer.music.get_pos()
+        current_pos = self.deck_L.position()
         playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
         #to_end_delta = song.end_pos - playback_pos #дублировано для проверки перехода
         print('START VOLUME AUTOMATION')
@@ -1197,7 +1225,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if self.state == PLAYING:#mixer.music.get_busy():
             print('CHANGE_POS: Playing mode - start playing and playback update')
             #mixer.music.stop().    ##### ОТКЛЮЧЕНО ЭКСПЕРИМЕНТАЛЬНО. Вырубалось обновление слайдера в этот момент
-            mixer.music.play(start=slider_pos / 1000)
+            self.deck_L.setPosition(slider_pos)
+            self.deck_L.play()
+            #mixer.music.play(start=slider_pos / 1000)
             self.start_playback_update()
         if not self.allow_playback_update:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
             self.allow_automations_update(playback=True, volume=None)
@@ -1288,7 +1318,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 #self.change_fade_range(song.fade_range)
                 self.start_pos = song.start_pos
                 #self.change_pos(self.start_pos) #change_pos вызывается из change_range, если playback_pos < start_pos
-                mixer.music.load(song.path)
+                content = QMediaContent(QUrl.fromLocalFile(song.path))
+                self.deck_L.setMedia(content)
             else:
                 print('song not loaded because it is muted') 
             self.waveform = song.waveform
@@ -1305,7 +1336,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.show_automations(False)
         self.enable(False, just_playback=True)
         self.waveform = []
-        mixer.music.unload()
+        #mixer.music.unload()
                     
     def min_sec_from_ms(self, milliseconds, show_ms=False):
         sec_float = milliseconds / 1000
@@ -1378,8 +1409,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.start_volume_update()
             
     def apply_volume(self):
-        mixer_volume = (self.song_volume / 100) * (self.master_volume / 100)
-        mixer.music.set_volume(mixer_volume)
+        mixer_volume = (self.song_volume * self.master_volume) / 100
+        self.deck_L.setVolume(mixer_volume)
+        #mixer.music.set_volume(mixer_volume)
     
     def vol_up(self, event=None):
         next_master_volume = self.master_volume + self.VOLUME_STEP
@@ -1497,7 +1529,13 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if volume == None:
             volume = self.options.signals_volume
         if enabled:
-            self.signal.set_volume(volume)
+            content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
+            self.signal.setMedia(content)
+            self.signal.setVolume(int(volume))
+            print(self.signal.currentMedia(), self.signal.currentMedia().isNull())
+            print(self.signal.currentMedia().request())
+            print('error:', self.deck_L.errorString())
+            print('signal available:', self.signal.isAudioAvailable())
             self.signal.play()
     
     def enable_controls(self, setting=True):
@@ -1542,7 +1580,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.options.save()
         self.deny_playback_automation()
         self.deny_volume_automation()
-        mixer.music.unload()
+        self.deck_L.stop()
+        #mixer.music.unload()
         event.accept()
     
     def resizeEvent(self, event):
