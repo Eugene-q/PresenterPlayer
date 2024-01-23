@@ -114,7 +114,7 @@ class OptionsDialog(QtWidgets.QDialog):
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
-        self.signals_volume = self.sliderSignalsVol.value() / 100
+        self.signals_volume = self.sliderSignalsVol.value()
         options_set = {'last_playlist_path': self.last_playlist_path,
                        'signals_volume': self.signals_volume,
                        'signals_enabled': self.checkBoxEnableSignals.isChecked(),
@@ -130,14 +130,14 @@ class OptionsDialog(QtWidgets.QDialog):
         self.hide()
         
     def cancel(self):
-        self.sliderSignalsVol.setValue(int(self.signals_volume * 100))
+        self.sliderSignalsVol.setValue(int(self.signals_volume))
         self.checkBoxEnableSignals.setChecked(self.checkBoxEnableSignals.isChecked())
         self.player.setFocus()
         self.hide()
     
     def test_signal_vol(self,):
         if self.checkBoxEnableSignals.isChecked():
-            volume = self.sliderSignalsVol.value() / 100
+            volume = self.sliderSignalsVol.value()
             self.player.play_signal(enabled=True, 
                                     volume=volume)
        
@@ -847,7 +847,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #self.signals_volume = 50
         #self.signals_enabled = False
         self.signal = QMediaPlayer() #mixer.Sound(DEFAULT_SIGNAL_PATH)
-        #self.signal.setMedia(QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH)))
+        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
+        self.signal.setMedia(content)
         self.state = STOPED
         self.enabled = True
         self.repeat_mode = PLAY_ALL
@@ -951,13 +952,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def just_play(self):
         content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
-        self.deck_R.setMedia(content)
+        self.signal.setMedia(content)
         #self.signal.setVolume(int(volume))
-        #print(self.signal.currentMedia(), self.signal.currentMedia().isNull())
-        #print(self.signal.currentMedia().request())
-        #print('error:', self.deck_L.errorString())
-        #print('signal available:', self.signal.isAudioAvailable())
-        self.deck_R.play()
+        self.signal.play()
     
        
     def _play(self):
@@ -1529,13 +1526,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if volume == None:
             volume = self.options.signals_volume
         if enabled:
-            content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
-            self.signal.setMedia(content)
+            print(volume)
             self.signal.setVolume(int(volume))
-            print(self.signal.currentMedia(), self.signal.currentMedia().isNull())
-            print(self.signal.currentMedia().request())
-            print('error:', self.deck_L.errorString())
-            print('signal available:', self.signal.isAudioAvailable())
             self.signal.play()
     
     def enable_controls(self, setting=True):
