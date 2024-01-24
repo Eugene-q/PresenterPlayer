@@ -833,7 +833,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.save_dir = DEFAULT_SAVE_DIR
         
         self.deck_L = QMediaPlayer()
-        self.deck_R = QMediaPlayer()
+        self.deck_L.setNotifyInterval(250)
+        self.deck_L.positionChanged.connect(self.update_playback_slider)
+        #self.deck_R = QMediaPlayer()
             
         self.start_pos = 0
         self.allow_playback_update = True
@@ -955,7 +957,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.signal.setMedia(content)
         #self.signal.setVolume(int(volume))
         self.signal.play()
-    
        
     def _play(self):
         self.play_signal()
@@ -970,12 +971,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #mixer.music.play(start=self.start_pos / 1000)
         #mixer.music.pause()
         self.deck_L.setPosition(self.start_pos)
-        self.start_playback_update()
+        #self.start_playback_update()
         self.start_volume_update()
         self.deck_L.play()
         #mixer.music.unpause()
         print('PLAYING...', self.list.playing,  song.name)
-        print('STATE:', self.deck_L.state())
            
     def _pause(self):
         song = self.list.song(self.list.playing)
@@ -1009,7 +1009,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         else:
             self.change_pos(0)
         print('STOPED...')
-        print('STATE:', self.deck_L.state())
         
     def play_pause(self, event=None):
         if not self.enabled:
@@ -1095,39 +1094,17 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if volume is not None:
             self.allow_volume_update = volume
         
-    def _update_playback_slider(self, song, current_pos, playback_pos, to_end_delta):
-        print('UPDATE_PLAYBACK SLIDER --')
-        while (self.state == PLAYING and#(mixer.music.get_busy() and 
-               self.allow_playback_update and
-               song ==  self.list.song(self.list.playing) and
-               current_pos >= 0 and
-               to_end_delta >= 0
-               ):
-            #current_pos = mixer.music.get_pos()
-            current_pos = self.deck_L.position()
-            playback_pos = self.start_pos + current_pos
-            to_end_delta = song.end_pos - playback_pos
-            if playback_pos % 250 < 20:
-                self.sliderPlaybackPos.setValue(playback_pos)
-            if playback_pos % 1000 < 20:
-                current_min_sec, current_millisec = self.min_sec_from_ms(playback_pos, show_ms=True)
-                self.labelCurrentPos.setText(current_min_sec)
-                if self.high_acuracy:
-                    self.labelCurrentPosMs.setText(current_millisec)
-                else:
-                    self.labelCurrentPosMs.hide()
-            sleep(0.01)
-        print('playback automation off')
-        #self.deny_autopos()
-        #print('mixer buzy:', mixer.music.get_busy())
-        #print('allow update:', self.allow_playback_update)
-        #print('current song:', song ==  self.list.song(self.list.playing))
-        #print('current mixer pos', current_pos)
-        #print('mixer pos:', mixer.music.get_pos())
-        if ((current_pos < 0 or to_end_delta < 35) and  #Проверка перехода
-                    self.state == PLAYING):
-            self.allow_automations_update(volume=False)
-            self.end_of_playback.emit()
+    def update_playback_slider(self, playback_pos):
+        if self.allow_playback_update:
+            self.sliderPlaybackPos.setValue(playback_pos)
+        if playback_pos % 1000 < 250:
+            current_min_sec, current_millisec = self.min_sec_from_ms(playback_pos, show_ms=True)
+            self.labelCurrentPos.setText(current_min_sec)
+            if self.high_acuracy:
+                self.labelCurrentPosMs.setText(current_millisec)
+            else:
+                self.labelCurrentPosMs.hide()
+                self.high_acuracy = False
     
     def _update_volume_automation(self, song, playback_pos):
         print('VOLUME AUTOMATION --')
@@ -1165,31 +1142,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                             self.sliderSongVol.setValue(fade_volume)
         print('volume automation off')
     
-    def start_playback_update(self):
-        # if self.playback_update_thread:
-             #if self.playback_update_thread.is_alive():
-                 #self.allow_automations_update(playback=False, volume=None)
-        busy_count = 0
-        if self.playback_update_thread:
-            while self.playback_update_thread.is_alive():#not active_threads() < 2:
-                print('playback_slider buzy!')
-                sleep(0.01)
-                busy_count += 1
-                if busy_count > 20:
-                    print('playback update force canceled')
-                    self.allow_automations_update(playback=False, volume=None)
-        song =  self.list.song(self.list.playing)
-        #current_pos = mixer.music.get_pos()
-        current_pos = self.deck_L.position()
-        playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
-        to_end_delta = song.end_pos - playback_pos #дублировано для проверки перехода
-        print('START PLAYBACK SLIDER')
-        self.allow_automations_update(playback=True, volume=None)
-        print('START PLAYBACK SLIDER: allow update: playback-', self.allow_playback_update, 'volume-', self.allow_volume_update)
-        self.playback_update_thread = Thread(target=self._update_playback_slider,
-               args=(song, current_pos, playback_pos, to_end_delta))
-        self.playback_update_thread.start()
-    
     def start_volume_update(self):
         if self.volume_update_thread:
             if self.volume_update_thread.is_alive():
@@ -1219,21 +1171,16 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             slider_pos = end_pos
         self.start_pos = slider_pos
         self.sliderPlaybackPos.setValue(slider_pos)
-        if self.state == PLAYING:#mixer.music.get_busy():
-            print('CHANGE_POS: Playing mode - start playing and playback update')
-            #mixer.music.stop().    ##### ОТКЛЮЧЕНО ЭКСПЕРИМЕНТАЛЬНО. Вырубалось обновление слайдера в этот момент
-            self.deck_L.setPosition(slider_pos)
-            self.deck_L.play()
-            #mixer.music.play(start=slider_pos / 1000)
-            self.start_playback_update()
-        if not self.allow_playback_update:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
-            self.allow_automations_update(playback=True, volume=None)
+        # if self.state == PLAYING: #ВРОДЕ ЭТО ТЕПЕРЬ НЕ НУЖНО
+#             print('CHANGE_POS: Playing mode - start playing and playback update')
+        self.deck_L.setPosition(slider_pos)
+        #if not self.allow_playback_update:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
+        self.allow_automations_update(playback=True, volume=None)
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
         if self.high_acuracy:
             self.labelCurrentPosMs.show()
             self.labelCurrentPosMs.setText(current_millisec)
-            self.high_acuracy = False
         print('CHANGE_POS: changed to', self.start_pos) 
     
     def change_range(self, pbrange=None):
@@ -1526,7 +1473,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if volume == None:
             volume = self.options.signals_volume
         if enabled:
-            print(volume)
             self.signal.setVolume(int(volume))
             self.signal.play()
     
