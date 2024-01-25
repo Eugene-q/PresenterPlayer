@@ -835,8 +835,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deck_L = QMediaPlayer()
         self.deck_L.setNotifyInterval(250)
         self.deck_L.positionChanged.connect(self.update_playback_slider)
-        self.deck_L.stateChanged.connect(self.play_next)
+        self.deck_L.stateChanged.connect(self.deck_state_changed)
         #self.deck_R = QMediaPlayer()
+        self.play_next_switch = False
             
         self.start_pos = 0
         self.allow_playback_update = True
@@ -922,8 +923,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonSetStart.clicked.connect(self.set_range)
         self.buttonSetEnd.clicked.connect(self.set_range)
         
-        self.toolButton.clicked.connect(self.just_play)
-        
         self.show_automations(False)
         
         self.list = SongListWidget(self)
@@ -953,11 +952,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.load(self.list.song(self.list.playing))
         self.setFocus()
     
-    def just_play(self):
-        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
-        self.signal.setMedia(content)
-        #self.signal.setVolume(int(volume))
-        self.signal.play()
+    def deck_state_changed(self, state):
+        song = self.list.song(self.list.playing)
+        if state == STOPED:
+            if self.deck_L.position() == song.end_pos:
+                self.play_next()
        
     def _play(self):
         self.play_signal()
@@ -994,8 +993,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def _stop(self, event=None):
         self.play_signal()
         print('_STOP -- ')
-        #self.start_pos =  song.start_pos
-        #mixer.music.stop()
         self.deck_L.stop()
         self.state = STOPED
         self.buttonPlay.setChecked(False)
@@ -1015,7 +1012,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             print('Controls disabled!')
             return
         self.play_signal()
-        print('sender:', self.sender())
+        #print('sender:', self.sender())
         if self.sender():
             sender = self.sender().parent()
             if type(sender) == SongWidget:
@@ -1040,18 +1037,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, state=None):
-        if state == None or state == STOPED:
-            self.play_signal()
-            self._stop()
-            next_song = self.get_next_song()
-            if next_song:
-                self.eject()
-                self.load(next_song)
-                if self.sender() == self or self.options.checkBoxAutoplayFforw.isChecked():
-                    self._play()  
-        else:
-            print('STATE(play_next):', state)
-    
+        self._stop()
+        next_song = self.get_next_song()
+        self.play_next_switch = False
+        if next_song:
+            self.eject()
+            self.load(next_song)
+            if self.sender() == self.deck_L or self.options.checkBoxAutoplayFforw.isChecked():
+                self._play() 
+                
     def get_next_song(self):
         next_song = None
         if self.repeat_mode == REPEAT_ONE:
@@ -1099,7 +1093,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def update_playback_slider(self, playback_pos):
         song = self.list.song(self.list.playing)
-        if self.deck_L.position() > song.end_pos:
+        if self.deck_L.position() > song.end_pos and not self.play_next_switch:
+            self.play_next_switch = True
             self.play_next()
             return
         if self.allow_playback_update:
@@ -1212,10 +1207,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             slider_pos = end_pos
         self.start_pos = slider_pos
         self.sliderPlaybackPos.setValue(slider_pos)
-        # if self.state == PLAYING: #ВРОДЕ ЭТО ТЕПЕРЬ НЕ НУЖНО
-#             print('CHANGE_POS: Playing mode - start playing and playback update')
         self.deck_L.setPosition(slider_pos)
-        #if not self.allow_playback_update:  ### предполижительно из-за доступа к переменной вырубалось обновление слайдера
         self.allow_automations_update(playback=True, volume=None)
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
