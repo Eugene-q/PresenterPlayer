@@ -1581,12 +1581,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #print(pos.x(), pos.y(), rect.width(), rect.height())
         polygon = QtGui.QPolygon()
         polygon.append(QtCore.QPoint(pos.x() + margin_x, 
-                                     pos.y() + rect.height() - margin_y))
+                                     pos.y() + rect.height() / 2 + margin_y))
         for i, sample in enumerate(self.waveform):
             polygon.append(QtCore.QPoint(pos.x() + margin_x + i,
-                                         pos.y() + rect.height() - margin_y - sample))
+                                         pos.y() + rect.height() / 2 + margin_y - sample))
         polygon.append(QtCore.QPoint(pos.x() + margin_x + len(self.waveform), 
-                                     pos.y() + rect.height() - margin_y))
+                                     pos.y() + rect.height() / 2 + margin_y))
         painter.drawConvexPolygon(polygon) # рисует ту же линию, но с затониорованым низом.
         #painter.drawPolyline(polygon) # может сделать пункт настроек?
     
