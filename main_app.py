@@ -941,15 +941,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         if not os.path.exists(self.options.last_playlist_path):
             self.list.save_as(DEFAULT_SAVE_DIR + 
-                                   DEFAULT_SONGLIST_NAME + 
-                                   SONG_LIST_EXTENSION)
+                              DEFAULT_SONGLIST_NAME + 
+                              SONG_LIST_EXTENSION)
         else:
             self.list.load(self.options.last_playlist_path)
             
         if self.list.is_empty():
             self.enable(False)
-        else:
-            self.load(self.list.song(self.list.playing))
+        # else:
+#             self.load(self.list.song(self.list.playing))
         self.setFocus()
     
     def deck_state_changed(self, state):
@@ -997,7 +997,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.state = STOPED
         self.buttonPlay.setChecked(False)
         self.buttonPause.setChecked(False)
-        self.sliderPlaybackPos.setValue(0)
+        #self.sliderPlaybackPos.setValue(0)
         song = self.list.song(self.list.playing)
         if song:
             song.buttonPlay.setIcon(self.PLAY_ICON)
@@ -1206,8 +1206,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         elif slider_pos > end_pos:
             slider_pos = end_pos
         self.start_pos = slider_pos
-        self.sliderPlaybackPos.setValue(slider_pos)
         self.deck_L.setPosition(slider_pos)
+        self.sliderPlaybackPos.setValue(slider_pos)
         self.allow_automations_update(playback=True, volume=None)
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
@@ -1271,6 +1271,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if song:
             if not song.muted:
                 print('loaded: ', song.name[:20])
+                content = QMediaContent(QUrl.fromLocalFile(song.path))
+                self.deck_L.setMedia(content)
                 #print('start pos:', song.start_pos)
                 song.buttonDelete.setEnabled(True)
                 self.enable(just_playback=True)
@@ -1280,6 +1282,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 if song.repeat:
                     self.switch_repeat_to(REPEAT_ONE)
                 self.sliderPlaybackPos.setMaximum(song.length)
+                #self.sliderPlaybackPos.setValue(song.start_pos)
                 self.sliderPlaybackRange.setMaximum(song.length)
                 self.sliderFadeRange.setMaximum(song.length)
                 #self.sliderPlaybackRange.setValue((song.start_pos, song.end_pos))
@@ -1295,8 +1298,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 #self.change_fade_range(song.fade_range)
                 self.start_pos = song.start_pos
                 #self.change_pos(self.start_pos) #change_pos вызывается из change_range, если playback_pos < start_pos
-                content = QMediaContent(QUrl.fromLocalFile(song.path))
-                self.deck_L.setMedia(content)
             else:
                 print('song not loaded because it is muted') 
             self.waveform = song.waveform
@@ -1386,7 +1387,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.start_volume_update()
             
     def apply_volume(self):
-        mixer_volume = (self.song_volume * self.master_volume) / 100
+        mixer_volume = int((self.song_volume * self.master_volume) / 100)
         self.deck_L.setVolume(mixer_volume)
         #mixer.music.set_volume(mixer_volume)
     
@@ -1581,12 +1582,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #print(pos.x(), pos.y(), rect.width(), rect.height())
         polygon = QtGui.QPolygon()
         polygon.append(QtCore.QPoint(pos.x() + margin_x, 
-                                     pos.y() + rect.height() / 2 + margin_y))
+                                     pos.y() + int(rect.height() / 2) + margin_y))
         for i, sample in enumerate(self.waveform):
             polygon.append(QtCore.QPoint(pos.x() + margin_x + i,
-                                         pos.y() + rect.height() / 2 + margin_y - sample))
+                                         pos.y() + int(rect.height() / 2) + margin_y - sample))
         polygon.append(QtCore.QPoint(pos.x() + margin_x + len(self.waveform), 
-                                     pos.y() + rect.height() / 2 + margin_y))
+                                     pos.y() + int(rect.height() / 2) + margin_y))
         painter.drawConvexPolygon(polygon) # рисует ту же линию, но с затониорованым низом.
         #painter.drawPolyline(polygon) # может сделать пункт настроек?
     
