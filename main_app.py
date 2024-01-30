@@ -1104,9 +1104,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.labelCurrentPos.setText(current_min_sec)
             if self.high_acuracy:
                 self.labelCurrentPosMs.setText(current_millisec)
+                if self.allow_playback_update:
+                    self.high_acuracy = False
             else:
                 self.labelCurrentPosMs.hide()
-                self.high_acuracy = False
+                
     
     # def _update_playback_slider(self, song, current_pos, playback_pos, to_end_delta):
     #     print('UPDATE_PLAYBACK SLIDER --')
@@ -1196,9 +1198,10 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def change_pos(self, pos=None):
         print('CHANGE_POS --')
         #print('pos:', pos)
-        if pos == None:
+        if pos == None: # отпущен слайдер позиции
             slider_pos = self.sliderPlaybackPos.value()
-        else:
+            self.allow_automations_update(playback=True, volume=None)
+        else:   # нажата кнопка перемотки
             slider_pos = pos
         start_pos, end_pos = self.sliderPlaybackRange.value()
         if slider_pos < start_pos:
@@ -1208,7 +1211,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.start_pos = slider_pos
         self.deck_L.setPosition(slider_pos)
         self.sliderPlaybackPos.setValue(slider_pos)
-        self.allow_automations_update(playback=True, volume=None)
+        
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
         if self.high_acuracy:
@@ -1325,7 +1328,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if show_ms:
             result = (f'{minutes :02.0f}:{sec :02.0f}', f'{hundr_sec :03.0f}')
         else:
-            self.high_acuracy = False
+            #self.high_acuracy = False
             result = f'{minutes :02.0f}:{sec :02.0f}'
         return result
     
