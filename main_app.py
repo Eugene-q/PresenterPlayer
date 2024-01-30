@@ -839,7 +839,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #self.deck_R = QMediaPlayer()
         self.play_next_switch = False
             
-        self.start_pos = 0
+        #self.start_pos = 0
         self.allow_playback_update = True
         self.allow_volume_update = True
         self.playback_update_thread = None
@@ -970,7 +970,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.allow_automations_update()
         #mixer.music.play(start=self.start_pos / 1000)
         #mixer.music.pause()
-        self.deck_L.setPosition(self.start_pos)
+        #self.deck_L.setPosition(self.start_pos)
         #self.start_playback_update()
         self.start_volume_update()
         self.deck_L.play()
@@ -980,7 +980,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def _pause(self):
         song = self.list.song(self.list.playing)
         self.play_signal()
-        self.start_pos += self.deck_L.position()
+        #self.start_pos = self.deck_L.position()
         self.deck_L.pause()
         #mixer.music.stop()
         self.state = PAUSED
@@ -1186,8 +1186,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.allow_automations_update(playback=None, volume=False)
         song =  self.list.song(self.list.playing)
         #current_pos = mixer.music.get_pos()
-        current_pos = self.deck_L.position()
-        playback_pos = self.start_pos + current_pos #дублировано для проверки повтора
+        playback_pos = self.deck_L.position() #дублировано для проверки повтора
         #to_end_delta = song.end_pos - playback_pos #дублировано для проверки перехода
         print('START VOLUME AUTOMATION')
         self.allow_automations_update(playback=None, volume=True)
@@ -1208,7 +1207,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             slider_pos = start_pos
         elif slider_pos > end_pos:
             slider_pos = end_pos
-        self.start_pos = slider_pos
+        #self.start_pos = slider_pos
         self.deck_L.setPosition(slider_pos)
         self.sliderPlaybackPos.setValue(slider_pos)
         
@@ -1217,7 +1216,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if self.high_acuracy:
             self.labelCurrentPosMs.show()
             self.labelCurrentPosMs.setText(current_millisec)
-        print('CHANGE_POS: changed to', self.start_pos) 
+        print('CHANGE_POS: changed to', slider_pos) 
     
     def change_range(self, pbrange=None):
         song = self.list.song(self.list.playing)
@@ -1276,6 +1275,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 print('loaded: ', song.name[:20])
                 content = QMediaContent(QUrl.fromLocalFile(song.path))
                 self.deck_L.setMedia(content)
+                self.deck_L.setPosition(song.start_pos)
                 #print('start pos:', song.start_pos)
                 song.buttonDelete.setEnabled(True)
                 self.enable(just_playback=True)
@@ -1299,7 +1299,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     if self.fade_raitos[0]:
                         self.sliderSongVol.setValue(0)
                 #self.change_fade_range(song.fade_range)
-                self.start_pos = song.start_pos
+                #self.start_pos = song.start_pos
                 #self.change_pos(self.start_pos) #change_pos вызывается из change_range, если playback_pos < start_pos
             else:
                 print('song not loaded because it is muted') 
