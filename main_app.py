@@ -11,7 +11,7 @@ from collections import deque
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
 from PyQt5.QtCore import QUrl
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QMediaPlaylist
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent#, QMediaPlaylist, QAudioDecoder
 import assets.icons
 from superqt import QRangeSlider
 from shutil import copyfile, rmtree
@@ -105,7 +105,7 @@ class OptionsDialog(QtWidgets.QDialog):
         else:
             options_set = DEFAULT_OPTIONS
         self.last_playlist_path = options_set.get('last_playlist_path')
-        self.signals_volume = options_set.get('signals_volume')
+        self.beeps_volume = options_set.get('signals_volume')
         self.checkBoxEnableSignals.setChecked(options_set.get('signals_enabled'))
         self.checkBoxShowAutomations.setChecked(options_set.get('always_show_automations'))
         self.checkBoxAutoplayFforw.setChecked(options_set.get('autoplay_fforw'))
@@ -114,9 +114,9 @@ class OptionsDialog(QtWidgets.QDialog):
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
-        self.signals_volume = self.sliderSignalsVol.value()
+        self.beeps_volume = self.sliderSignalsVol.value()
         options_set = {'last_playlist_path': self.last_playlist_path,
-                       'signals_volume': self.signals_volume,
+                       'signals_volume': self.beeps_volume,
                        'signals_enabled': self.checkBoxEnableSignals.isChecked(),
                        'always_show_automations': self.checkBoxShowAutomations.isChecked(),
                        'autoplay_fforw': self.checkBoxAutoplayFforw.isChecked(),
@@ -130,7 +130,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.hide()
         
     def cancel(self):
-        self.sliderSignalsVol.setValue(int(self.signals_volume))
+        self.sliderSignalsVol.setValue(int(self.beeps_volume))
         self.checkBoxEnableSignals.setChecked(self.checkBoxEnableSignals.isChecked())
         self.player.setFocus()
         self.hide()
@@ -138,7 +138,7 @@ class OptionsDialog(QtWidgets.QDialog):
     def test_signal_vol(self,):
         if self.checkBoxEnableSignals.isChecked():
             volume = self.sliderSignalsVol.value()
-            self.player.play_signal(enabled=True, 
+            self.player.play_beep(enabled=True, 
                                     volume=volume)
        
 
@@ -248,8 +248,9 @@ class SongListWidget(QtWidgets.QWidget):
         self.buttonClearList.clicked.connect(self.clear)
         self.buttonDeleteList.clicked.connect(self.delete)
         
+        #self.audioread = QAudioDecoder()
+        
         self.player = player
-        #self.repeat = PLAY_ALL
         self.renamed_song = None
         self.id_source = 0
         self.saved = True
@@ -263,7 +264,7 @@ class SongListWidget(QtWidgets.QWidget):
     
     def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
         return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
-        
+       
     def add_songs(self, filenames=[], songs_info=[]): 
         list_was_empty = self.is_empty() 
         if songs_info:                   # Добавление песен из загруженного списка
@@ -306,6 +307,14 @@ class SongListWidget(QtWidgets.QWidget):
         
             for song_filename in filenames:
                 song_file_path = os.path.join(self.playback_dir, song_filename)
+                # self.audioread.setSourceFilename(song_file_path)
+#                 print('AudioDecoder error:', self.audioread.errorString())
+#                 self.audioread.start()
+                # while not self.audioread.bufferAvailable():
+#                     sleep(0.1)
+#                     print('wait buffer...')
+                # length = self.audioread.duration()
+                #print('length SUCCESS!! :', length)
                 with audioread.audio_open(song_file_path) as audio_file:
                     #print('Unsupported sound file!')#TODO Сделать окно предупреждения
                     channels = audio_file.channels 
@@ -836,8 +845,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deck_L.positionChanged.connect(self.update_playback_slider)
         self.deck_L.stateChanged.connect(self.deck_state_changed)
         #self.deck_R = QMediaPlayer()
+        
         self.play_next_switch = False
-            
         self.allow_playback_update = True
         self.allow_volume_update = True
         self.playback_update_thread = None
@@ -846,13 +855,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.song_volume = 100
         self.fade_raitos = (0, 0)
         self.master_volume = self.START_VOLUME
-        self.signal = QMediaPlayer()
-        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
-        self.signal.setMedia(content)
         self.state = STOPED
         self.enabled = True
         self.repeat_mode = PLAY_ALL
         self.prev_repeat_mode = self.repeat_mode
+        
+        self.beep = QMediaPlayer()
+        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
+        self.beep.setMedia(content)
+        
         self.waveform = []
         
         self.options = OptionsDialog(OPTIONS_FILE_PATH, self)
@@ -950,7 +961,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.play_next()
        
     def _play(self):
-        self.play_signal()
+        self.play_beep()
         song = self.list.song(self.list.playing)
         self.state = PLAYING
         self.buttonPlay.setChecked(True)
@@ -965,7 +976,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
            
     def _pause(self):
         song = self.list.song(self.list.playing)
-        self.play_signal()
+        self.play_beep()
         self.deck_L.pause()
         self.state = PAUSED
         self.buttonPlay.setChecked(False)
@@ -975,7 +986,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('PAUSED...')
                 
     def _stop(self, event=None):
-        self.play_signal()
+        self.play_beep()
         print('_STOP -- ')
         self.deck_L.stop()
         self.state = STOPED
@@ -994,7 +1005,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if not self.enabled:
             print('Controls disabled!')
             return
-        self.play_signal()
+        self.play_beep()
         #print('sender:', self.sender())
         if self.sender():
             sender = self.sender().parent()
@@ -1051,7 +1062,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         return next_song
     
     def play_previous(self, event=None):
-        self.play_signal()
+        self.play_beep()
         self._stop()
         previous_song = self.list.get_song('previous')
         while previous_song and previous_song.muted:
@@ -1431,14 +1442,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.buttonSetFadeOut.setEnabled(state)
             self.buttonAutomations.setEnabled(state)
     
-    def play_signal(self, enabled=None, volume=None):
+    def play_beep(self, enabled=None, volume=None):
         if enabled == None:
             enabled = self.options.checkBoxEnableSignals.isChecked()
         if volume == None:
-            volume = self.options.signals_volume
+            volume = self.options.beeps_volume
         if enabled:
-            self.signal.setVolume(int(volume))
-            self.signal.play()
+            self.beep.setVolume(int(volume))
+            self.beep.play()
     
     def enable_controls(self, setting=True):
         self.controls_enabled = setting
