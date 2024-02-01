@@ -11,7 +11,7 @@ from collections import deque
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
 from PyQt5.QtCore import QUrl
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent#, QMediaPlaylist, QAudioDecoder
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QAudioDecoder
 import assets.icons
 from superqt import QRangeSlider
 from shutil import copyfile, rmtree
@@ -307,14 +307,6 @@ class SongListWidget(QtWidgets.QWidget):
         
             for song_filename in filenames:
                 song_file_path = os.path.join(self.playback_dir, song_filename)
-                # self.audioread.setSourceFilename(song_file_path)
-#                 print('AudioDecoder error:', self.audioread.errorString())
-#                 self.audioread.start()
-                # while not self.audioread.bufferAvailable():
-#                     sleep(0.1)
-#                     print('wait buffer...')
-                # length = self.audioread.duration()
-                #print('length SUCCESS!! :', length)
                 with audioread.audio_open(song_file_path) as audio_file:
                     #print('Unsupported sound file!')#TODO Сделать окно предупреждения
                     channels = audio_file.channels 
@@ -1031,6 +1023,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, state=None):
+        self.play_beep()
         self._stop()
         next_song = self.get_next_song()
         self.play_next_switch = False
@@ -1222,6 +1215,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def load(self, song):
         print('LOAD')
         if song:
+            self.waveform = song.waveform
+            self.resizeEvent(QtGui.QResizeEvent)
             if not song.muted:
                 print('loaded: ', song.name[:20])
                 content = QMediaContent(QUrl.fromLocalFile(song.path))
@@ -1244,8 +1239,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                         self.sliderSongVol.setValue(0)
             else:
                 print('song not loaded because it is muted') 
-            self.waveform = song.waveform
-            self.resizeEvent(QtGui.QResizeEvent)
         else:
              print('song not loaded. No song to load! Current song:', self.list.song(self.list.selected))
     
