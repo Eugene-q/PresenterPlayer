@@ -838,7 +838,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deck_L = QMediaPlayer()
         self.deck_L.setNotifyInterval(250)
         self.deck_L.positionChanged.connect(self.update_playback_slider)
-        self.deck_L.stateChanged.connect(self.deck_state_changed)
         #self.deck_R = QMediaPlayer()
         
         self.play_next_switch = False
@@ -948,12 +947,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if self.list.is_empty():
             self.enable(False)
         self.setFocus()
-    
-    def deck_state_changed(self, state):
-        song = self.list.song(self.list.playing)
-        if state == STOPED:
-            if self.deck_L.position() == song.end_pos:
-                self.play_next()
        
     def _play(self):
         self.play_beep()
@@ -1025,7 +1018,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             else:
                 self._pause()
             
-    def play_next(self, state=None):
+    def play_next(self):
         self.play_beep()
         self._stop()
         next_song = self.get_next_song()
@@ -1037,18 +1030,22 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._play() 
                 
     def get_next_song(self):
+        repeat_mode = self.repeat_mode
         next_song = None
-        if self.repeat_mode == REPEAT_ONE:
-            print('repeat one')
-            next_song =  self.list.song(self.list.playing)
-        elif self.repeat_mode == PLAY_ALL or self.repeat_mode == REPEAT_ALL:
+        if repeat_mode == REPEAT_ONE:
+            if self.play_next_switch:
+                print('repeat one')
+                next_song =  self.list.song(self.list.playing)
+            else:
+                repeat_mode = PLAY_ALL
+        if repeat_mode == PLAY_ALL or repeat_mode == REPEAT_ALL:
             print('play/repeat all')
             song = self.list.get_song('next')
             while song and song.muted:
                 song = self.list.get_song('next')
             if song:
                 next_song = song
-            elif self.repeat_mode == REPEAT_ALL:
+            elif repeat_mode == REPEAT_ALL:
                 self.list.playing = 0
                 self.list.set_current_row(0)
                 song = self.list.song(0)
