@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+'''MAC OS VERSION'''
+
 
 import audioread
 import pdb
@@ -289,7 +291,7 @@ class SongListWidget(QtWidgets.QWidget):
                 filepaths = QtWidgets.QFileDialog.getOpenFileNames(self, 
                                                         'Добавить дорожки', 
                                                         USER_MUSIC_DIR, 
-                                                        'Music Files (*.mp3 *.wav)',
+                                                        'Music Files (*.mp3 *.wav *.m4a *.mpeg)',
                                                         )[0]
                 self.player.setFocus()
                 filenames = []
@@ -374,6 +376,7 @@ class SongListWidget(QtWidgets.QWidget):
         song_widget.buttonRepeat.clicked.connect(self.player.set_repeat)
         song_widget.buttonDelete.clicked.connect(self.delete_song_widget)
         song_widget.buttonMute.clicked.connect(self.mute_song)
+        song_widget.buttonRepeat.setChecked(song_widget.repeat)
         song_widget.buttonMute.setChecked(song_widget.muted)
         if song_widget.muted:
             song_widget.buttonPlay.setDisabled(True)
