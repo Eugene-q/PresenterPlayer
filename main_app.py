@@ -963,7 +963,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.buttonPause.setChecked(False)
         song.buttonPlay.setIcon(self.PLAY_ICON)
         song.buttonPlay.setChecked(True)
-        
         self.allow_automations_update()
         self.start_volume_update()
         self.deck_L.play()
@@ -994,6 +993,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.change_pos(song.start_pos)
         else:
             self.change_pos(0)
+        if (self.sender() == self.buttonStop and
+                 song != self.list.song(self.list.selected)):
+            self.eject()
+            self.list.set_row(self.list.selected, playing=True)
+            self.load(self.list.song(self.list.playing))  
         print('STOPED...')
         
     def play_pause(self, event=None):
@@ -1244,7 +1248,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     self.switch_repeat_to(REPEAT_ONE)
                 else:
                     self.switch_repeat_to(self.prev_repeat_mode)
-                print('song repeat_one mode:', song.repeat)
+                #print('song repeat_one mode:', song.repeat)
                 self.sliderPlaybackPos.setMaximum(song.length)
                 self.sliderPlaybackRange.setMaximum(song.length)
                 self.sliderFadeRange.setMaximum(song.length)
