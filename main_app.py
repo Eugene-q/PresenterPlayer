@@ -781,7 +781,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     MAX_VOL = 100
     MIN_VOL = 0
     VOLUME_STEP = 5
-    end_of_playback = QtCore.pyqtSignal()
+    #end_of_playback = QtCore.pyqtSignal()
     
     def __init__(self,):
         super().__init__()
@@ -836,7 +836,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deck_L.setNotifyInterval(250)
         self.deck_L.positionChanged.connect(self.update_playback_slider)
         self.deck_L.stateChanged.connect(self.deck_state_changed)
-        self.end_of_playback.connect(self.play_next)
+        #self.end_of_playback.connect(self.play_next)
         #self.deck_R = QMediaPlayer()
         
         self.play_next_switch = False
@@ -1026,6 +1026,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self):
+        print('PLAY NEXT')
         self.play_beep()
         self._stop()
         next_song = self.get_next_song()
@@ -1034,8 +1035,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             #print('Loading next song...')
             #self.load(next_song)
             if self.sender() == self.deck_L or self.options.checkBoxAutoplayFforw.isChecked():
-                sleep(0.05)
-                self._play() 
+                self._play()
         self.play_next_switch = False
         print('play next switched to False')
                 
@@ -1048,6 +1048,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             if self.play_next_switch:
                 print('repeat one')
                 next_song =  self.list.song(self.list.playing)
+                self.load(next_song)
             else:
                 print('temporary PLAY ALL')
                 repeat_mode = PLAY_ALL
@@ -1095,8 +1096,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song = self.list.song(self.list.playing)
         if self.deck_L.position() >= song.end_pos and not self.play_next_switch:
             self.play_next_switch = True
-            print('END OF PLAYBACK emited')
-            self.end_of_playback.emit()
+            self.play_next()
+            #self.end_of_playback.emit()
+            #print('END OF PLAYBACK emited')
             return
         if self.allow_playback_update:
             self.sliderPlaybackPos.setValue(playback_pos)
@@ -1111,7 +1113,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.labelCurrentPosMs.hide()
     
     def _update_volume_automation(self, song, playback_pos):
-        print('VOLUME AUTOMATION --')
+        #print('VOLUME AUTOMATION --')
         fade_volume = 0
         while (self.allow_volume_update and
                 self.state == PLAYING):
@@ -1390,8 +1392,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song = self.list.song(self.list.playing)
         fade_in, fade_out = song.fade_range
         fade_in, fade_out = fade_in - song.start_pos, song.end_pos - fade_out
-        print('GET FADE RAITOS --')
-        print('fade in:', fade_in, 'fade out', fade_out, 'volume:', song.volume)
+        #print('GET FADE RAITOS --')
+        #print('fade in:', fade_in, 'fade out', fade_out, 'volume:', song.volume)
         if fade_in:
             fade_in_raito = song.volume / fade_in
         else:
