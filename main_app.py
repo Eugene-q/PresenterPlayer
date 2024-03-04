@@ -39,6 +39,7 @@ DEFAULT_SIGNAL_PATH = os.path.join(BASE_DIR, 'assets/signal.wav')
 DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/new_songlist_music/')
 DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/')
 SONG_LIST_EXTENSION = '.sl'
+SUPPORTED_FILE_TYPES = '.mp3', '.wav', '.m4a', '.mpeg'
 DEFAULT_SONGLIST_NAME = 'New_songlist'
 
 OPTIONS_FILE_PATH = os.path.join(BASE_DIR, 'assets/options.json')
@@ -269,9 +270,10 @@ class SongListWidget(QtWidgets.QWidget):
         list_was_empty = self.is_empty() 
         if songs_info:                   # Добавление песен из загруженного списка
             for info in songs_info:
+                song_path = os.path.join(self.playback_dir, info.get('name')+info.get('file_type'))
                 song_widget = SongWidget(parent=self,
                                         id=info.get('id'),
-                                        path=info.get('path'),
+                                        path=song_path,
                                         name=info.get('name'),
                                         file_type=info.get('file_type'),
                                         volume=info.get('volume'),
@@ -286,10 +288,11 @@ class SongListWidget(QtWidgets.QWidget):
                 self.add_song_widget(song_widget)
         else:
             if not filenames:           # Добавление песен по кнопке +
+                supported_file_types = ' *'.join(SUPPORTED_FILE_TYPES)
                 filepaths = QtWidgets.QFileDialog.getOpenFileNames(self, 
                                                         'Добавить дорожки', 
                                                         USER_MUSIC_DIR, 
-                                                        'Music Files (*.mp3 *.wav *.m4a *.mpeg)',
+                                                        F'Music Files (*{supported_file_types})',
                                                         )[0]
                 self.player.setFocus()
                 filenames = []
@@ -423,7 +426,7 @@ class SongListWidget(QtWidgets.QWidget):
             with open(self.save_file_path, 'w') as save_file:
                 json.dump(songs_info, save_file, indent=4)
                 #json.dump(list(reversed(songs_info)), save_file, indent=4)
-            song_filenames = [os.path.basename(song_info.get('path')) for song_info in songs_info]
+            song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
             for filename in self.get_playback_dir_filenames():
                 if filename not in song_filenames:
                     if self.show_message_box(SOURCE_DELETE_WARNING.format(filename.partition('.')[0])) == OK:
@@ -480,11 +483,13 @@ class SongListWidget(QtWidgets.QWidget):
                 load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
                                                         'Загрузка списка песен', 
                                                         os.path.join(USER_MUSIC_DIR, 'song_lists'), 
-                                                        'SongList File (*.sl)',
+                                                        F'SongList File (*{SONG_LIST_EXTENSION})',
                                                         )[0]
                 self.player.setFocus()
             if load_file_path:
-                print('file path:', load_file_path)   
+                print('file path:', load_file_path)
+                self.save_file_path = load_file_path
+                self.playback_dir = self.get_playback_dir_path(load_file_path)  
                 with open(load_file_path, 'r') as load_file:
                     songs_info = json.load(load_file)
                 if not self.is_empty():
@@ -498,8 +503,6 @@ class SongListWidget(QtWidgets.QWidget):
                     self.player.enable()
                 else:
                     self.player.enable(False)
-                self.save_file_path = load_file_path
-                self.playback_dir = self.get_playback_dir_path(load_file_path)
                 self.set_saved()
             
     def clear(self, silent=False):
@@ -557,21 +560,15 @@ class SongListWidget(QtWidgets.QWidget):
     def change_row(self, row):
         print()
         print('CHANGE ROW')
-        #song = self.song(row)
         self.selected = row
         print('SELECTED SONG INDEX:', self.selected)
         #print('Player_state:', self.player.state)
         if self.player.state is STOPED:
-            #if song != self.song(self.playing):
             self.playing = row
             song = self.song(self.playing)
             if song:
                 self.player.eject()
                 self.player.load(song)
-                # if song.repeat:
-#                     self.player.switch_repeat_to(REPEAT_ONE)
-#                 else:
-#                     self.player.switch_repeat_to(self.player.prev_repeat_mode)
             else:
                 print('Song widget not detected!') 
         if self.renamed_song:
@@ -761,7 +758,7 @@ class SongList(QtWidgets.QListWidget):
     def get_song_info(self, song):
         #waveform = song.waveform or []
         song_info = {'id': song.id,
-                    'path': song.path,
+                    #'path': song.path,
                     'name': song.name,
                     'file_type': song.file_type,
                     'volume': song.volume,
