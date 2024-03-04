@@ -51,6 +51,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'autoplay_fforw': False,
                    'autoplay_rew': False,
                    'clicker_enabled_in_list_mode': True,
+                   'change_pos_step': 250,
                 }
 
 CLEAR_WARNING = 'Все несохранённые изменения будут утеряны! Очистить список?'
@@ -61,8 +62,6 @@ SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, н
 Если файл оставить, вы потом сможете снова добавить его в список\n
 Cancel - оставить файл. Ок - удалить '''
 LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
-
-CHANGE_POS_STEP = 250
 
 STOPED = 0
 PLAYING = 1
@@ -114,6 +113,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxAutoplayFforw.setChecked(options_set.get('autoplay_fforw'))
         self.checkBoxAutoplayRew.setChecked(options_set.get('autoplay_rew'))
         self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
+        self.spinBoxChangePosStep.setValue(options_set.get('change_pos_step'))
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
@@ -125,6 +125,7 @@ class OptionsDialog(QtWidgets.QDialog):
                        'autoplay_fforw': self.checkBoxAutoplayFforw.isChecked(),
                        'autoplay_rew': self.checkBoxAutoplayRew.isChecked(),
                        'clicker_enabled_in_list_mode': self.checkBoxKeyControlsEnable.isChecked(),
+                       'change_pos_step': self.spinBoxChangePosStep.value()
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
@@ -1215,14 +1216,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.change_range((start_pos, end_pos))    
         
     def step_rewind(self):
-        new_slider_pos = self.sliderPlaybackPos.value() - CHANGE_POS_STEP
+        new_slider_pos = self.sliderPlaybackPos.value() - self.options.spinBoxChangePosStep.value()
         if new_slider_pos >= 0:
             self.high_acuracy = True
             self.deny_playback_automation()
             self.change_pos(new_slider_pos)
         
     def step_fforward(self):
-        new_slider_pos = self.sliderPlaybackPos.value() + CHANGE_POS_STEP
+        new_slider_pos = self.sliderPlaybackPos.value() + self.options.spinBoxChangePosStep.value()
         if new_slider_pos <=  self.list.song(self.list.playing).length:
             self.high_acuracy = True
             self.deny_playback_automation()
@@ -1275,11 +1276,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def min_sec_from_ms(self, milliseconds, show_ms=False):
         sec_float = milliseconds / 1000
         sec_int = int(sec_float)
-        hundr_sec = int((sec_float - sec_int) * 100)
+        millisec = int((sec_float - sec_int) * 1000)
         minutes = sec_int // 60
         sec = sec_int % 60
         if show_ms:
-            result = (f'{minutes :02.0f}:{sec :02.0f}', f'{hundr_sec :03.0f}')
+            result = (f'{minutes :02.0f}:{sec :02.0f}', f'{millisec :03.0f}')
         else:
             result = f'{minutes :02.0f}:{sec :02.0f}'
         return result
