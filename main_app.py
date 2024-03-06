@@ -63,6 +63,7 @@ SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, н
 Cancel - оставить файл. Ок - удалить '''
 LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
 RESET_SONG_SETTINGS_WARNING = 'Настройки громкости и позиции будут сброшены!'
+CLOSE_NOT_SAVED_WARNING = 'Сохранить список перед выходом?'
 
 STOPED = 0
 PLAYING = 1
@@ -1523,6 +1524,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deny_playback_automation()
         self.deny_volume_automation()
         self.deck_L.stop()
+        if (not self.list.saved and 
+                self.list.show_message_box(CLOSE_NOT_SAVED_WARNING) == OK):
+            self.list.save()    
         event.accept()
     
     def resizeEvent(self, event):
