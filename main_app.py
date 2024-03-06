@@ -62,6 +62,7 @@ SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, н
 Если файл оставить, вы потом сможете снова добавить его в список\n
 Cancel - оставить файл. Ок - удалить '''
 LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
+RESET_SONG_SETTINGS_WARNING = 'Настройки громкости и позиции будут сброшены!'
 
 STOPED = 0
 PLAYING = 1
@@ -71,9 +72,11 @@ PLAY_ONE = 0
 REPEAT_ONE = 1
 PLAY_ALL = 2
 REPEAT_ALL = 3
-    
 
 OK = 1024
+
+DEFAULT_MASTER_VOLUME = 50
+DEFAULT_SONG_VOLUME = 100
 
 BASE_WAVEFORM_DISPLAY_WIDTH = 1920
 PLAYBACK_SLIDER_WIDTH_OFFSET = 92
@@ -1436,13 +1439,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.buttonSetFadeOut.hide()
                
     def reset_song_settings(self):
-        self.master_vol_change(50)
-        self.song_vol_change(100, move_slider=True)
-        self.change_range((0,  self.list.song(self.list.playing).length))
-        self.change_fade_range((0,  self.list.song(self.list.playing).length))
-        self.list.song(self.list.playing).repeat = False
-        self.list.song(self.list.playing).muted = False
-        self._stop()
+        if self.list.show_message_box(RESET_SONG_SETTINGS_WARNING) == OK:
+            self.master_vol_change(DEFAULT_MASTER_VOLUME)
+            self.song_vol_change(DEFAULT_SONG_VOLUME, move_slider=True)
+            self.change_range((0,  self.list.song(self.list.playing).length))
+            self.change_fade_range((0,  self.list.song(self.list.playing).length))
+            self.list.song(self.list.playing).repeat = False
+            self.list.song(self.list.playing).muted = False
+            self._stop()
     
     def enable(self, state=True, just_playback=False):
         print('ENABLE:', state)
