@@ -55,7 +55,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                 }
 
 CLEAR_WARNING = 'Все несохранённые изменения будут утеряны! Очистить список?'
-LOAD_WARNING = 'Загружаемый список заменит существующий.\nВсе несохранённые изменения будут утеряны. Продолжить?'
+LOAD_WARNING = 'Новый список заменит существующий.\nВсе несохранённые изменения будут утеряны. Продолжить?'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
 SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, но файл с ней ещё остался.
 Если удалить файл, вы, возможно, не сможете восстановить его.
@@ -245,7 +245,8 @@ class SongListWidget(QtWidgets.QWidget):
         self.buttonListHeader.clicked.connect(self.rename_mode)
         self.buttonListHeader.setToolTip(self.buttonListHeader.text())
         self.buttonListHeader.setStyleSheet("text-align:left;")
-        self.buttonAddTrack.clicked.connect(self.add_songs)  
+        self.buttonAddTrack.clicked.connect(self.add_songs)
+        self.buttonNewList.clicked.connect(self.new_list) 
         self.buttonSaveList.clicked.connect(self.save)
         self.buttonSaveListAs.clicked.connect(self.save_as)
         self.buttonLoadList.clicked.connect(self.load)
@@ -405,18 +406,43 @@ class SongListWidget(QtWidgets.QWidget):
         new_save_file_path = os.path.normpath(new_save_file_path.lower())
         #print('OLD:', old_save_file_path)
         #print('NEW:', new_save_file_path)
-        if new_save_file_path == old_save_file_path:
-            self.normal_mode()
-            return
-        new_save_file_path = os.path.abspath(new_save_file_path)
-        self.save_as(new_save_file_path)
-        os.remove(old_save_file_path)
-        self.player.eject()
-        rmtree(self.get_playback_dir_path(old_save_file_path))
+        if new_save_file_path != old_save_file_path:
+            new_save_file_path = os.path.abspath(new_save_file_path)
+            self.save_as(new_save_file_path)
+            if os.path.exists(old_save_file_path):
+                os.remove(old_save_file_path)
+                self.player.eject()
+                rmtree(self.get_playback_dir_path(old_save_file_path))
+            self.buttonListHeader.setText(new_name)
+            self.buttonListHeader.setToolTip(new_name)
         self.normal_mode()
-        self.buttonListHeader.setText(new_name)
-        self.buttonListHeader.setToolTip(new_name)
-        self.player.load(self.song(self.playing))
+        if not self.is_empty():
+            self.player.load(self.song(self.playing))
+        else:
+            self.player.enable(False)
+    
+    def new_list(self):
+        if self.is_empty() or self.show_message_box(LOAD_WARNING) == OK:
+            self.clear(silent=True)
+            save_file_path = self.get_new_list_path()
+            self.save_as(save_file_path)
+            save_file_name = os.path.splitext(os.path.basename(save_file_path))[0]
+            print(save_file_name)
+            self.rename_mode(name=save_file_name)
+    
+    def get_new_list_path(self):
+        save_name = DEFAULT_SONGLIST_NAME
+        while True:
+            save_file_path = os.path.join(DEFAULT_SAVE_DIR, save_name + SONG_LIST_EXTENSION)
+            if os.path.exists(save_file_path):
+                with open(save_file_path) as save_file:
+                    if json.load(save_file):
+                        save_name += '_копия'
+                    else:
+                        break
+            else:
+                break
+        return save_file_path
     
     def save(self):
         if not self.saved:
@@ -437,32 +463,27 @@ class SongListWidget(QtWidgets.QWidget):
         else:
             print('not saved')
     
-    def save_as(self, save_file_path=''):
+    def save_as(self, save_file_path='', blank=False):
         if not save_file_path:
             save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
                                      os.path.join('.', DEFAULT_SAVE_DIR), 'SongList File (*.sl)')[0]
             self.player.setFocus()
         if save_file_path == self.save_file_path:
-            print('called SAVE')
+            #print('just called SAVE')
             self.save()
         elif save_file_path:
-            music_dir_path = self.get_playback_dir_path(save_file_path)
-            #if save_file_path:
-            songs_info = []
-            if os.path.exists(music_dir_path):
-                rmtree(music_dir_path)#TODO Предупреждение, что такой список уже есть.
-            os.mkdir(music_dir_path)
-            self.playback_dir = music_dir_path
-            for song in self.list.get_all_songs():
-                new_song_path = os.path.join(music_dir_path, song.name + song.file_type)
-                copyfile(song.path, new_song_path)
-                song.path = new_song_path
-                songs_info.append(self.list.get_song_info(song))
-            with open(save_file_path, 'w') as save_file:
-                json.dump(songs_info, save_file, indent=4)
-                #json.dump(list(reversed(songs_info)), save_file, indent=4)
+            playback_dir_path = self.get_playback_dir_path(save_file_path)
+            if os.path.exists(playback_dir_path):
+                rmtree(playback_dir_path)#TODO Предупреждение, что такой список уже есть.
+            os.mkdir(playback_dir_path)
+            self.playback_dir = playback_dir_path
+            if not blank:
+                for song in self.list.get_all_songs():
+                    new_song_path = os.path.join(playback_dir_path, song.name + song.file_type)
+                    copyfile(song.path, new_song_path)
             self.save_file_path = save_file_path
-            self.set_saved()
+            self.set_saved(False)
+            self.save()
         
     def set_saved(self, saved=True):
         self.saved = saved
@@ -527,18 +548,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.clear(silent=True)
             os.remove(self.save_file_path)
             rmtree(self.get_playback_dir_path(self.save_file_path))
-            save_name = DEFAULT_SONGLIST_NAME
-            while True:
-                save_file_path = os.path.join(DEFAULT_SAVE_DIR, save_name + SONG_LIST_EXTENSION)
-                if os.path.exists(save_file_path):
-                    with open(save_file_path) as save_file:
-                        if json.load(save_file):
-                            save_name += '_копия'
-                        else:
-                            break
-                else:
-                    break
-            self.save_file_path = save_file_path
+            self.save_file_path = self.get_new_list_path()
             music_dir_path = self.get_playback_dir_path(self.save_file_path)
             if os.path.exists(music_dir_path):
                 rmtree(music_dir_path)
@@ -594,11 +604,11 @@ class SongListWidget(QtWidgets.QWidget):
             muted_song.buttonPlay.setEnabled(True)
             self.player.enable(just_playback=True)
         
-    def rename_mode(self):
+    def rename_mode(self, name=None):
         self.player.enable_controls(False)
         self.buttonListHeader.hide()
         self.lineListHeader.show()
-        self.lineListHeader.setText(self.buttonListHeader.text())
+        self.lineListHeader.setText(name or self.buttonListHeader.text())
         self.lineListHeader.selectAll()
         self.lineListHeader.setFocus()
 
@@ -1096,7 +1106,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
     def update_playback_slider(self, playback_pos):
         song = self.list.song(self.list.playing)
-        if self.deck_L.position() >= song.end_pos and not self.play_next_switch:
+        if self.state == PLAYING and self.deck_L.position() >= song.end_pos and not self.play_next_switch:
             self.play_next_switch = True
             self.play_next()
             #self.end_of_playback.emit()
