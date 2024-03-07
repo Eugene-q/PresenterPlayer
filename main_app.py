@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''MAC OS VERSION'''
+'''master VERSION'''
 
 
 import audioread
@@ -54,8 +54,8 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'change_pos_step': 250,
                 }
 
-CLEAR_WARNING = 'Все несохранённые изменения будут утеряны! Очистить список?'
-LOAD_WARNING = 'Новый список заменит существующий.\nВсе несохранённые изменения будут утеряны. Продолжить?'
+CLEAR_WARNING = 'Очистить список? \nФайлы песен будут по-прежнему доступны в папке списка.'
+LOAD_WARNING = 'Новый список заменит существующий.\nПродолжить?'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
 SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, но файл с ней ещё остался.
 Если удалить файл, вы, возможно, не сможете восстановить его.
@@ -63,7 +63,6 @@ SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, н
 Cancel - оставить файл. Ок - удалить '''
 LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
 RESET_SONG_SETTINGS_WARNING = 'Настройки громкости и позиции будут сброшены!'
-CLOSE_NOT_SAVED_WARNING = 'Сохранить список перед выходом?'
 
 STOPED = 0
 PLAYING = 1
@@ -206,7 +205,8 @@ class SongWidget(QtWidgets.QWidget):
     def save_name(self):
         self.name = self.lineNewSongName.text()
         self.labelSongName.setText(self.name)
-        self.song_list.set_saved(False)
+        self.update_filename()
+        self.song_list.save()
         self.normal_mode()
         
     def normal_mode(self):
@@ -215,6 +215,15 @@ class SongWidget(QtWidgets.QWidget):
         self.labelSongName.show()
         self.song_list.player.enable_controls()
     
+    def update_filename(self):
+        filedir, filename = os.path.split(self.path)
+        old_name, filetype = os.path.splitext(filename)
+        if old_name != self.name:
+            new_path = os.path.join(filedir, self.name + filetype)
+            copyfile(self.path, new_path)
+            os.remove(self.path)
+            self.path = new_path
+            
     def set_playback_range(self, playback_range):
         self.start_pos, self.end_pos = playback_range
         self.range_limited = (self.start_pos != 0 or
@@ -250,8 +259,7 @@ class SongListWidget(QtWidgets.QWidget):
         self.buttonListHeader.setToolTip(self.buttonListHeader.text())
         self.buttonListHeader.setStyleSheet("text-align:left;")
         self.buttonAddTrack.clicked.connect(self.add_songs)
-        self.buttonNewList.clicked.connect(self.new_list) 
-        self.buttonSaveList.clicked.connect(self.save)
+        self.buttonNewList.clicked.connect(self.new_list)
         self.buttonSaveListAs.clicked.connect(self.save_as)
         self.buttonLoadList.clicked.connect(self.load)
         self.buttonClearList.clicked.connect(self.clear)
@@ -260,7 +268,6 @@ class SongListWidget(QtWidgets.QWidget):
         self.player = player
         self.renamed_song = None
         self.id_source = 0
-        self.saved = True
         self.playback_dir = DEFAULT_PLAYBACK_DIR
         if not os.path.exists(DEFAULT_SAVE_DIR):
             os.mkdir(DEFAULT_SAVE_DIR)
@@ -309,7 +316,7 @@ class SongListWidget(QtWidgets.QWidget):
                     improved_filename = self.improve_filename(filename)
                     if improved_filename:
                         filename = improved_filename
-                        pass            # TODO Окно предупреждения об удалении недопустимых символов
+                                       # TODO Окно предупреждения об удалении недопустимых символов
                     filenames.append(filename)
                     if filename not in current_playback_filenames:
                         copyfile(filepath, os.path.join(self.playback_dir, filename))
@@ -366,7 +373,7 @@ class SongListWidget(QtWidgets.QWidget):
                                          )
                 self.add_song_widget(song_widget)
         if filenames:
-            self.set_saved(False)
+            self.save()
             if list_was_empty:
                 self.player.enable(True)
                 #self.player.load(self.song(0))
@@ -377,7 +384,6 @@ class SongListWidget(QtWidgets.QWidget):
         item.setSizeHint(QtCore.QSize(1, LIST_ITEM_HEIGHT)) #width based on parent, height = 28
         self.list.addItem(item)
         self.list.setItemWidget(item, song_widget)
-        self.saved = False
     
         song_widget.buttonPlay.clicked.connect(self.player.play_pause)
         song_widget.buttonRepeat.clicked.connect(self.player.set_repeat)
@@ -399,8 +405,7 @@ class SongListWidget(QtWidgets.QWidget):
                 self.list.takeItem(delete_index)
                 if self.is_empty():
                     self.player.enable(False)
-                #     self.player.buttonSaveList.setDisabled(True)
-                self.set_saved(False)
+                self.save(silent=True)
     
     def save_list_name(self):
         new_name = self.lineListHeader.text()
@@ -448,34 +453,32 @@ class SongListWidget(QtWidgets.QWidget):
                 break
         return save_file_path
     
-    def save(self):
-        if not self.saved:
-            songs_info = []
-            for song in self.list.get_all_songs():
-                songs_info.append(self.list.get_song_info(song))
-            #print('Save file path:', self.save_file_path)
-            with open(self.save_file_path, 'w') as save_file:
-                json.dump(songs_info, save_file, indent=4)
-                #json.dump(list(reversed(songs_info)), save_file, indent=4)
-            song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
-            for filename in self.get_playback_dir_filenames():
-                if filename not in song_filenames:
-                    if self.show_message_box(SOURCE_DELETE_WARNING.format(filename.partition('.')[0])) == OK:
-                        os.remove(os.path.join(self.playback_dir, filename))#TODO Добавить кнопки Удалить все и Сохранить все или чекбокс Применить ко всем.
-            self.set_saved()
-            print('saved')
-        else:
-            print('not saved')
+    def save(self, silent=False):
+        print('SAVE: [silent:', silent, end='] ')
+        list_name = os.path.basename(self.save_file_path).partition('.')[0]
+        self.buttonListHeader.setText(list_name)
+        self.buttonListHeader.setToolTip(list_name)
+        songs_info = []
+        for song in self.list.get_all_songs():
+            print(song.name[:3], end=', ')
+            songs_info.append(self.list.get_song_info(song))
+        #print('Save file path:', self.save_file_path)
+        with open(self.save_file_path, 'w') as save_file:
+            json.dump(songs_info, save_file, indent=4)
+            #json.dump(list(reversed(songs_info)), save_file, indent=4)
+        song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
+        for filename in self.get_playback_dir_filenames():
+            if filename not in song_filenames:
+                if silent or self.show_message_box(SOURCE_DELETE_WARNING.format(filename.partition('.')[0])) == OK:
+                    os.remove(os.path.join(self.playback_dir, filename))#TODO Добавить кнопки Удалить все и Сохранить все или чекбокс Применить ко всем.
+        print('saved')
     
     def save_as(self, save_file_path='', blank=False):
         if not save_file_path:
             save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
                                      os.path.join('.', DEFAULT_SAVE_DIR), 'SongList File (*.sl)')[0]
             self.player.setFocus()
-        if save_file_path == self.save_file_path:
-            #print('just called SAVE')
-            self.save()
-        elif save_file_path:
+        if save_file_path and save_file_path != self.save_file_path:
             playback_dir_path = self.get_playback_dir_path(save_file_path)
             if os.path.exists(playback_dir_path):
                 rmtree(playback_dir_path)#TODO Предупреждение, что такой список уже есть.
@@ -486,21 +489,7 @@ class SongListWidget(QtWidgets.QWidget):
                     new_song_path = os.path.join(playback_dir_path, song.name + song.file_type)
                     copyfile(song.path, new_song_path)
             self.save_file_path = save_file_path
-            self.set_saved(False)
-            self.save()
-        
-    def set_saved(self, saved=True):
-        self.saved = saved
-        if saved:
-            self.labelSaveSign.setText('')
-            list_name = os.path.basename(self.save_file_path).partition('.')[0]
-            #print('list name for button:', list_name)
-            self.buttonListHeader.setText(list_name)
-            self.buttonListHeader.setToolTip(list_name)
-            self.buttonSaveList.setDisabled(True)
-        else:
-            self.labelSaveSign.setText('*')
-            self.buttonSaveList.setEnabled(True)
+        self.save()
                   
     def load(self, load_file_path=''):
         print('LOAD SONGLIST')
@@ -529,14 +518,13 @@ class SongListWidget(QtWidgets.QWidget):
                     self.player.enable()
                 else:
                     self.player.enable(False)
-                self.set_saved()
+                self.save()
             
     def clear(self, silent=False):
         result = False
         if not self.is_empty():
             if silent or self.show_message_box(CLEAR_WARNING) == OK:
                 self.list.clear()
-                self.set_saved()
                 self.player.eject()
                 self.player.enable(False)
                 result = True
@@ -558,8 +546,7 @@ class SongListWidget(QtWidgets.QWidget):
                 rmtree(music_dir_path)
             os.mkdir(music_dir_path)
             self.playback_dir = music_dir_path
-            self.set_saved(False)
-            self.save()
+            self.save(silent=True)
         self.player.setFocus()
             
     def set_row(self, target, playing=False):
@@ -584,11 +571,13 @@ class SongListWidget(QtWidgets.QWidget):
             if song:
                 self.player.eject()
                 self.player.load(song)
+                self.normal_mode()
             else:
-                print('Song widget not detected!') 
+                print('Song widget not detected!')
+                self.player.enable(False)
         if self.renamed_song:
             self.renamed_song.normal_mode()
-        self.normal_mode()
+        
         
     def rename_song(self, list_item=None):
         self.renamed_song = self.list.itemWidget(list_item)
@@ -597,7 +586,7 @@ class SongListWidget(QtWidgets.QWidget):
     def mute_song(self):
         muted_song = self.sender().parent()
         muted_song.muted = not muted_song.muted
-        self.set_saved(False)
+        self.save()
         if muted_song.muted:
             muted_song.buttonPlay.setDisabled(True)
             if muted_song == self.song(self.selected):
@@ -741,12 +730,12 @@ class SongList(QtWidgets.QListWidget):
                 self.widget.playing -= 1
             elif from_index > playing and drop_index <= playing:
                 self.widget.playing += 1
-            self.widget.set_saved(False)
             print('drop indicator position:', self.dropIndicatorPosition())
             print('from index', from_index)
             print('drop index', drop_index)
             print('playing =', self.widget.playing)
             super().dropEvent(event)
+            self.widget.save()
         
     def get_all_songs(self, info=False):
         songs = []
@@ -1200,7 +1189,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         fade_in, fade_out = song.fade_range
         if not pbrange:  #slider released
             start_pos, end_pos = self.sliderPlaybackRange.value()
-            self.list.set_saved(False)
         else:       #button set range
             start_pos, end_pos = pbrange
             self.sliderPlaybackRange.setValue(pbrange)
@@ -1208,7 +1196,9 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         fade_out_delta = fade_out - song.end_pos
         #song.start_pos = start_pos
         #song.end_pos = end_pos
-        song.set_playback_range((start_pos, end_pos))
+        if (song.start_pos, song.end_pos) != (start_pos, end_pos):
+            song.set_playback_range((start_pos, end_pos))
+            self.list.save()
         self.labelEndPos.setText(self.min_sec_from_ms(end_pos))
         if self.sliderPlaybackPos.value() < start_pos:
             self.change_pos(start_pos)
@@ -1302,7 +1292,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def set_repeat(self):
         #selected_song = self.list.song(listSongs.selected)
         if self.sender() == self.buttonRepeat:
-            self.list.set_saved(False)
             self.repeat_mode = (self.repeat_mode + 1) % 4
             self.prev_repeat_mode = self.repeat_mode
             if self.repeat_mode == PLAY_ONE:
@@ -1330,7 +1319,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     self.switch_repeat_to(REPEAT_ONE)
                 else:
                     self.switch_repeat_to(self.prev_repeat_mode)
-            self.list.set_saved(False)
+        self.list.save()
     
     def switch_repeat_to(self, mode):
         print('SWITCH REPEAT TO', mode)
@@ -1383,10 +1372,11 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         song = self.list.song(self.list.playing)
         if not fade_range:     #slider released
             fadein_pos, fadeout_pos = self.sliderFadeRange.value()
-            self.list.set_saved(False)
         else:               #set_fade_range
             fadein_pos, fadeout_pos = fade_range
-        song.set_fading((fadein_pos, fadeout_pos))
+        if song.fade_range != (fadein_pos, fadeout_pos):
+            song.set_fading((fadein_pos, fadeout_pos))
+            self.list.save()
         self.sliderFadeRange.setValue(song.fade_range)
         self.fade_raitos = self.get_fade_raitos()
     
@@ -1524,9 +1514,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deny_playback_automation()
         self.deny_volume_automation()
         self.deck_L.stop()
-        if (not self.list.saved and 
-                self.list.show_message_box(CLOSE_NOT_SAVED_WARNING) == OK):
-            self.list.save()    
         event.accept()
     
     def resizeEvent(self, event):
