@@ -55,12 +55,9 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                 }
 
 CLEAR_WARNING = 'Очистить список? \nФайлы песен будут по-прежнему доступны в папке списка.'
-LOAD_WARNING = 'Новый список заменит существующий.\nПродолжить?'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
 SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, но файл с ней ещё остался.
-Если удалить файл, вы, возможно, не сможете восстановить его.
-Если файл оставить, вы потом сможете снова добавить его в список\n
-Cancel - оставить файл. Ок - удалить '''
+Удалить файл или оставить в папке списка?'''
 LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
 RESET_SONG_SETTINGS_WARNING = 'Настройки громкости и позиции будут сброшены!'
 
@@ -73,7 +70,10 @@ REPEAT_ONE = 1
 PLAY_ALL = 2
 REPEAT_ALL = 3
 
-OK = 1024
+OK = 0
+CANCEL = 1
+OK_FOR_ALL = 2
+CANCEL_FOR_ALL = 3
 
 DEFAULT_MASTER_VOLUME = 50
 DEFAULT_SONG_VOLUME = 100
@@ -398,7 +398,7 @@ class SongListWidget(QtWidgets.QWidget):
         #delete_index = self.list.currentRow()
         delete_index = self.list.get_song_index(self.sender().parent())
         if delete_index == self.playing and self.player.state is not STOPED:
-            self.show_message_box(DELETE_PLAYING_WARNING, cancel=False)
+            self.show_message_box(DELETE_PLAYING_WARNING, cancel_text='')
         elif self.show_message_box('Точно удалить?') == OK:
                 if delete_index < self.playing:
                     self.playing -= 1
@@ -471,8 +471,20 @@ class SongListWidget(QtWidgets.QWidget):
             song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
             for filename in self.get_playback_dir_filenames():
                 if filename not in song_filenames:
-                    if silent or self.show_message_box(SOURCE_DELETE_WARNING.format(filename.partition('.')[0])) == OK:
-                        os.remove(os.path.join(self.playback_dir, filename))#TODO Добавить кнопки Удалить все и Сохранить все или чекбокс Применить ко всем.
+                    if not silent:
+                        warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
+                        message_result = self.show_message_box(warning, 
+                                                        ok_text='Удалить',
+                                                        cancel_text='Оставить', 
+                                                        apply_all=True)
+                    if silent or message_result == OK or message_result == OK_FOR_ALL:
+                        os.remove(os.path.join(self.playback_dir, filename))
+                        print('REMOVED:', filename)
+                        if message_result == OK_FOR_ALL:
+                            print('silent = True')
+                            silent = True
+                    elif message_result == CANCEL_FOR_ALL:
+                        break                
         print('saved')
     
     def save_as(self, save_file_path='', blank=False):
@@ -497,33 +509,32 @@ class SongListWidget(QtWidgets.QWidget):
         print('LOAD SONGLIST')
         if self.save_file_path:
             self.save()
-        if self.is_empty() or self.show_message_box(LOAD_WARNING) == OK:
-            if not load_file_path:
-                load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
-                                                        'Загрузка списка песен', 
-                                                        os.path.join(USER_MUSIC_DIR, 'song_lists'), 
-                                                        F'SongList File (*{SONG_LIST_EXTENSION})',
-                                                        )[0]
-                self.player.setFocus()
-            if load_file_path:
-                print('file path:', load_file_path)
-                self.save_file_path = load_file_path
-                self.playback_dir = self.get_playback_dir_path(load_file_path)  
-                with open(load_file_path, 'r') as load_file:
-                    songs_info = json.load(load_file)
-                if not self.is_empty():
-                    self.player._stop()
-                    self.player.eject()
-                    self.clear(silent=True)            
-                if songs_info:
-                    self.add_songs(songs_info=songs_info)
-                    row_changed = self.set_row(0, playing=True)
-                    if not row_changed:
-                        self.player.load(self.song(self.playing))
-                    self.normal_mode()
-                else:
-                    self.player.enable(False)
-                self.save()
+        if not load_file_path:
+            load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
+                                                    'Загрузка списка песен', 
+                                                    os.path.join(USER_MUSIC_DIR, 'song_lists'), 
+                                                    F'SongList File (*{SONG_LIST_EXTENSION})',
+                                                    )[0]
+            self.player.setFocus()
+        if load_file_path:
+            print('file path:', load_file_path)
+            self.save_file_path = load_file_path
+            self.playback_dir = self.get_playback_dir_path(load_file_path)  
+            with open(load_file_path, 'r') as load_file:
+                songs_info = json.load(load_file)
+            if not self.is_empty():
+                self.player._stop()
+                self.player.eject()
+                self.clear(silent=True)            
+            if songs_info:
+                self.add_songs(songs_info=songs_info)
+                row_changed = self.set_row(0, playing=True)
+                if not row_changed:
+                    self.player.load(self.song(self.playing))
+                self.normal_mode()
+            else:
+                self.player.enable(False)
+            self.save()
             
     def clear(self, silent=False):
         result = False
@@ -584,8 +595,7 @@ class SongListWidget(QtWidgets.QWidget):
                 self.player.enable(False)
         if self.renamed_song:
             self.renamed_song.normal_mode()
-        
-        
+            
     def rename_song(self, list_item=None):
         self.renamed_song = self.list.itemWidget(list_item)
         self.renamed_song.rename()
@@ -619,16 +629,20 @@ class SongListWidget(QtWidgets.QWidget):
         self.lineListHeader.clearFocus()
         self.player.setFocus()
         
-    def show_message_box(self, message, cancel=True):
+    def show_message_box(self, message, apply_all=False, ok_text='OK', cancel_text='Cancel'):
         message_box = QtWidgets.QMessageBox()
-        button_ok = QtWidgets.QMessageBox.Ok
-        button_cancel = QtWidgets.QMessageBox.Cancel
-        if cancel:
-            message_box.setStandardButtons(button_ok | button_cancel)
-        else:
-            message_box.setStandardButtons(button_ok)
+        apply_all_checkbox = QtWidgets.QCheckBox('Применить ко всем', self)
         message_box.setText(message)
-        return message_box.exec()
+        message_box.addButton(ok_text,QtWidgets.QMessageBox.AcceptRole)
+        if cancel_text:
+            message_box.addButton(cancel_text,QtWidgets.QMessageBox.RejectRole)
+        if apply_all:
+            message_box.setCheckBox(apply_all_checkbox)
+        result = message_box.exec()
+        if apply_all_checkbox.isChecked():
+            result += 2
+        print('MESSAGE BOX RESULT:', result)
+        return result
         
     def get_playback_dir_filenames(self):
         return [f_name.strip() for f_name in os.listdir(self.playback_dir
