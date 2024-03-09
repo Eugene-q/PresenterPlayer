@@ -54,7 +54,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'change_pos_step': 250,
                 }
 
-CLEAR_WARNING = 'Очистить список? \nФайлы песен будут по-прежнему доступны в папке списка.'
+CLEAR_WARNING = 'Удалить все песни из списка? \nФайлы песен останутся папке списка.'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
 SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, но файл с ней ещё остался.
 Удалить файл или оставить в папке списка?'''
@@ -72,8 +72,8 @@ REPEAT_ALL = 3
 
 OK = 0
 CANCEL = 1
-OK_FOR_ALL = 2
-CANCEL_FOR_ALL = 3
+OK_CHECKED = 2
+CANCEL_CHECKED = 3
 
 DEFAULT_MASTER_VOLUME = 50
 DEFAULT_SONG_VOLUME = 100
@@ -471,19 +471,20 @@ class SongListWidget(QtWidgets.QWidget):
             song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
             for filename in self.get_playback_dir_filenames():
                 if filename not in song_filenames:
+                    message_result = None
                     if not silent:
                         warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
                         message_result = self.show_message_box(warning, 
                                                         ok_text='Удалить',
                                                         cancel_text='Оставить', 
-                                                        apply_all=True)
-                    if silent or message_result == OK or message_result == OK_FOR_ALL:
+                                                        checkbox_text='Применить ко всем')
+                    if silent or message_result == OK or message_result == OK_CHECKED:
                         os.remove(os.path.join(self.playback_dir, filename))
                         print('REMOVED:', filename)
-                        if message_result == OK_FOR_ALL:
+                        if message_result == OK_CHECKED:
                             print('silent = True')
                             silent = True
-                    elif message_result == CANCEL_FOR_ALL:
+                    elif message_result == CANCEL_CHECKED:
                         break                
         print('saved')
     
@@ -539,10 +540,17 @@ class SongListWidget(QtWidgets.QWidget):
     def clear(self, silent=False):
         result = False
         if not self.is_empty():
-            if silent or self.show_message_box(CLEAR_WARNING) == OK:
+            message_result = None
+            if not silent:
+                message_result = self.show_message_box(CLEAR_WARNING, 
+                                                    ok_text='Очистить',
+                                                    checkbox_text='Удалить также и файлы песен')
+            if silent or message_result == OK or message_result == OK_CHECKED:
                 self.list.clear()
                 self.player.eject()
                 self.player.enable(False)
+                if message_result == OK_CHECKED:
+                    self.save(silent=True)
                 result = True
             else:
                 self.player.enable()
@@ -629,19 +637,19 @@ class SongListWidget(QtWidgets.QWidget):
         self.lineListHeader.clearFocus()
         self.player.setFocus()
         
-    def show_message_box(self, message, apply_all=False, ok_text='OK', cancel_text='Cancel'):
+    def show_message_box(self, message, checkbox_text='', ok_text='OK', cancel_text='Отмена'):
         message_box = QtWidgets.QMessageBox()
-        apply_all_checkbox = QtWidgets.QCheckBox('Применить ко всем', self)
+        checkbox = QtWidgets.QCheckBox(checkbox_text, self)
         message_box.setText(message)
         message_box.addButton(ok_text,QtWidgets.QMessageBox.AcceptRole)
         if cancel_text:
             message_box.addButton(cancel_text,QtWidgets.QMessageBox.RejectRole)
-        if apply_all:
-            message_box.setCheckBox(apply_all_checkbox)
+        if checkbox_text:
+            message_box.setCheckBox(checkbox)
         result = message_box.exec()
-        if apply_all_checkbox.isChecked():
+        if checkbox.isChecked():
             result += 2
-        print('MESSAGE BOX RESULT:', result)
+        #print('MESSAGE BOX RESULT:', result)
         return result
         
     def get_playback_dir_filenames(self):
