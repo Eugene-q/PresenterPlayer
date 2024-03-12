@@ -54,6 +54,10 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'change_pos_step': 250,
                 }
 
+FOLDER_NOT_FOUND_WARNING = 'Не удалось найти папку с файлами песен!'
+SONGFILE_NOT_FOUND_WARNING = 'Не удалось найти файл\n{}'
+WRONG_FILE_NAME_WARNING = '''Вы искали файл\n{}\nно указали файл с другим именем\n{}\nВсё правильно?\n
+При добавлении в папку списка файл будет переименован'''
 CLEAR_WARNING = 'Удалить все песни из списка? \nФайлы песен останутся папке списка.'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
 SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, но файл с ней ещё остался.
@@ -71,9 +75,13 @@ PLAY_ALL = 2
 REPEAT_ALL = 3
 
 OK = 0
-CANCEL = 1
-OK_CHECKED = 2
-CANCEL_CHECKED = 3
+MIDDLE = 1
+CANCEL = 2
+OK_CHECKED = 3
+MIDDLE_CHECKED = 4
+CANCEL_CHECKED = 5
+
+
 
 DEFAULT_MASTER_VOLUME = 50
 DEFAULT_SONG_VOLUME = 100
@@ -432,13 +440,12 @@ class SongListWidget(QtWidgets.QWidget):
     
     def new_list(self):
         self.save()
-        if self.is_empty() or self.show_message_box(LOAD_WARNING) == OK:
-            self.clear(silent=True)
-            save_file_path = self.get_new_list_path()
-            self.save_as(save_file_path)
-            save_file_name = os.path.splitext(os.path.basename(save_file_path))[0]
-            #print(save_file_name)
-            self.rename_mode(name=save_file_name)
+        self.clear(silent=True)
+        save_file_path = self.get_new_list_path()
+        self.save_as(save_file_path)
+        save_file_name = os.path.splitext(os.path.basename(save_file_path))[0]
+        #print(save_file_name)
+        self.rename_mode(name=save_file_name)
     
     def get_new_list_path(self):
         save_name = DEFAULT_SONGLIST_NAME
@@ -517,7 +524,7 @@ class SongListWidget(QtWidgets.QWidget):
                                                     F'SongList File (*{SONG_LIST_EXTENSION})',
                                                     )[0]
             self.player.setFocus()
-        if load_file_path:
+        if load_file_path and self.project_is_valid(load_file_path):
             print('file path:', load_file_path)
             self.save_file_path = load_file_path
             self.playback_dir = self.get_playback_dir_path(load_file_path)  
@@ -572,7 +579,132 @@ class SongListWidget(QtWidgets.QWidget):
             self.playback_dir = music_dir_path
             self.save(check_filenames=False)
         self.player.setFocus()
+    
+    def project_is_valid(self, load_file_path):
+        print('PROJECT VALIDATION')
+        valid = False
+        with open(load_file_path, 'r') as load_file:
+            songs_info = json.load(load_file)
+        file_names_list = [song_info.get('name') + song_info.get('file_type') for song_info in songs_info]
+        playback_dir = self.get_playback_dir_path(load_file_path)
+        if not os.path.exists(playback_dir):
+            print('playback dir not exist!')
+            message_result = self.show_message_box(FOLDER_NOT_FOUND_WARNING, 
+                                            ok_text='Указать папку',
+                                            cancel_text='Отменить загрузку списка')
+            if message_result == OK:
+                new_playback_dir = QtWidgets.QFileDialog.getExistingDirectory(self,
+                                                        'Выбрать папку',
+                                                        os.path.join(USER_MUSIC_DIR, 'song_lists'))
+                if new_playback_dir:
+                    os.mkdir(playback_dir)
+                    for file_name in self.find_files(file_names_list, new_playback_dir, search_in_list=True):
+                        copyfile(os.path.join(new_playback_dir, file_name), 
+                                 os.path.join(playback_dir, file_name))
+                    valid = self.project_is_valid(load_file_path)
+        else:
+            print('playback dir is valid...')
+            files_not_found = self.find_files(file_names_list, playback_dir, not_found=True)
+            files_to_process = files_not_found
+            print('files not found:', files_not_found)
+            for file_name in files_not_found:
+                warning = SONGFILE_NOT_FOUND_WARNING.format(file_name)
+                file_path = ''
+                show_choice = True
+                while not file_path:
+                    if show_choice:
+                        choice_result = self.show_message_box(warning, 
+                                                        ok_text='Найти файл',
+                                                        cancel_text='Удалить песню из списка',
+                                                        middle_text='Отменить загрузку списка', 
+                                                        checkbox_text='Для всех файлов')
+                    if choice_result == OK or choice_result == OK_CHECKED:
+                        relevant_file_name = self.get_relevant_file_name(file_name)
+                        file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
+                                                        F'Найти файл {file_name}',
+                                                        os.path.join(USER_MUSIC_DIR, 'song_lists'),
+                                                        F'*{relevant_file_name}')[0]
+                        
+                        if file_path:
+                            print('file_path recieved...')
+                            try_playback_dir, try_file_name = os.path.split(file_path)
+                            warning = WRONG_FILE_NAME_WARNING.format(file_name, try_file_name)
+                            if try_file_name != file_name and self.show_message_box(warning, 
+                                                        ok_text='Добавить файл',
+                                                        cancel_text='Найти другой файл',
+                                                        ) == CANCEL:
+                                print('wrong file! Try to find another')
+                                file_path = ''
+                                show_choice = False
+                                continue 
+                            if choice_result == OK_CHECKED:
+                                show_choice = False
+                                for try_file_name in self.find_files(files_to_process, try_playback_dir):
+                                    copyfile(os.path.join(try_playback_dir, try_file_name), 
+                                             os.path.join(playback_dir, try_file_name))
+                                    files_to_process.remove(try_file_name)
+                                if files_to_process:
+                                    file_path = ''
+                            else:
+                                copyfile(file_path, os.path.join(playback_dir, file_name))
+                                files_to_process.remove(file_name)
+                        else:
+                            show_choice = True
+                    elif choice_result == CANCEL or choice_result == CANCEL_CHECKED:
+                        print('deleting song', file_name)
+                        if choice_result == CANCEL_CHECKED:
+                            songs_info = self.remove_info_by_filename(files_to_process, songs_info)
+                            files_to_process.clear()
+                            file_path = 'pass'
+                        else:
+                            file_names_list.remove(file_name)
+                            files_to_process.remove(file_name)
+                            songs_info = self.remove_info_by_filename((file_name,), songs_info)
+                            file_path = 'pass'
+                    elif choice_result == MIDDLE or choice_result == MIDDLE_CHECKED:
+                        valid = False
+                        return
+                if not files_to_process:
+                    break
+            print('all files found. VALIDATED!')
+            valid = True
+        with open(load_file_path, 'w') as save_file:
+            json.dump(songs_info, save_file)
+        return valid    
+    
+    def get_relevant_file_name(self, file_name):
+        name, sep, extension = file_name.rpartition('.')
+        relevant_name = name
+        index = max(name.rfind(' '), name.rfind('.'))
+        if index >= 0:
+            relevant_name = name[index+1:]
+        return sep.join((relevant_name, extension))
             
+    def find_files(self, file_list, search_dir, search_in_list=False, not_found=False):
+        search_here = self.get_playback_dir_filenames(search_dir)
+        look_for = file_list   #каждый файл списка ищем среди файлов папки
+        if search_in_list:
+            search_here = file_list     #каждый файл папки ищем среди файлов списка
+            look_for = self.get_playback_dir_filenames(search_dir) 
+        result = []
+        for file_name in look_for:
+            if file_name in search_here and not not_found:
+                result.append(file_name)
+            elif not file_name in search_here and not_found:
+                result.append(file_name)
+        return result
+    
+    def remove_info_by_filename(self, song_filenames, songs_info):
+        new_songs_info = []
+        for song_info in songs_info:
+            song_filename = song_info.get('name')+song_info.get('file_type')
+            print('searching...', song_info.get('name'))
+            if not song_filename in song_filenames: 
+                new_songs_info.append(song_info)
+            else:
+                print('song removed')
+        return new_songs_info
+                
     def set_row(self, target, playing=False):
         if type(target) != int:
             row = self.list.get_song_index(target)    
@@ -631,29 +763,43 @@ class SongListWidget(QtWidgets.QWidget):
         self.lineListHeader.setFocus()
 
     def normal_mode(self):
-        self.player.enable(not self.song(self.playing).muted)
+        song = self.song(self.playing)
+        self.player.enable(bool(song and not song.muted))
         self.buttonListHeader.show()
         self.lineListHeader.hide()
         self.lineListHeader.clearFocus()
         self.player.setFocus()
         
-    def show_message_box(self, message, checkbox_text='', ok_text='OK', cancel_text='Отмена'):
+    def show_message_box(self, message, 
+                               checkbox_text='', 
+                               ok_text='OK', 
+                               cancel_text='Отмена',
+                               middle_text='',
+                               ):
         message_box = QtWidgets.QMessageBox()
-        checkbox = QtWidgets.QCheckBox(checkbox_text, self)
         message_box.setText(message)
         message_box.addButton(ok_text,QtWidgets.QMessageBox.AcceptRole)
+        middle_button = message_box.addButton(middle_text, QtWidgets.QMessageBox.RejectRole)
+        cancel_button = message_box.addButton(cancel_text, QtWidgets.QMessageBox.RejectRole)
+        middle_button.hide()
+        cancel_button.hide()
+        checkbox = None
+        if middle_text:
+            middle_button.show()
         if cancel_text:
-            message_box.addButton(cancel_text,QtWidgets.QMessageBox.RejectRole)
+            cancel_button.show()
         if checkbox_text:
+            checkbox = QtWidgets.QCheckBox(checkbox_text, message_box)
             message_box.setCheckBox(checkbox)
         result = message_box.exec()
-        if checkbox.isChecked():
-            result += 2
-        #print('MESSAGE BOX RESULT:', result)
+        if checkbox and checkbox.isChecked():
+            result += 3
+        print('MESSAGE BOX RESULT:', result)
         return result
         
-    def get_playback_dir_filenames(self):
-        return [f_name.strip() for f_name in os.listdir(self.playback_dir
+    def get_playback_dir_filenames(self, playback_dir=''):
+        playback_dir = playback_dir or self.playback_dir
+        return [f_name.strip() for f_name in os.listdir(playback_dir
                                     ) if not f_name.startswith('.')]
 
     def improve_filename(self, filename):
