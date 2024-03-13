@@ -58,6 +58,7 @@ FOLDER_NOT_FOUND_WARNING = 'Не удалось найти папку с фай�
 SONGFILE_NOT_FOUND_WARNING = 'Не удалось найти файл\n{}'
 WRONG_FILE_NAME_WARNING = '''Вы искали файл\n{}\nно указали файл с другим именем\n{}\nВсё правильно?\n
 При добавлении в папку списка файл будет переименован'''
+LIST_FILE_EXISTS_WARNING = 'Список с именем {} уже есть!\nВсё его содержимое будет перезаписано!'
 CLEAR_WARNING = 'Удалить все песни из списка? \nФайлы песен останутся папке списка.'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
 SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, но файл с ней ещё остался.
@@ -417,21 +418,27 @@ class SongListWidget(QtWidgets.QWidget):
     
     def save_list_name(self):
         new_name = self.lineListHeader.text()
-        new_save_file_path = os.path.join(os.path.dirname(self.save_file_path),
-                                            new_name+SONG_LIST_EXTENSION).lower()
-        old_save_file_path = os.path.normpath(self.save_file_path.lower())
-        new_save_file_path = os.path.normpath(new_save_file_path.lower())
-        #print('OLD:', old_save_file_path)
-        #print('NEW:', new_save_file_path)
-        if new_save_file_path != old_save_file_path:
-            new_save_file_path = os.path.abspath(new_save_file_path)
-            self.save_as(new_save_file_path)
-            if os.path.exists(old_save_file_path):
-                os.remove(old_save_file_path)
-                self.player.eject()
-                rmtree(self.get_playback_dir_path(old_save_file_path))
-            self.buttonListHeader.setText(new_name)
-            self.buttonListHeader.setToolTip(new_name)
+        new_file_name = new_name + SONG_LIST_EXTENSION
+        if (not self.find_files((new_file_name,), os.path.dirname(self.save_file_path)) or
+                    self.show_message_box(LIST_FILE_EXISTS_WARNING.format(new_name), 
+                                          ok_text='Перезаписать',
+                                          default_button=CANCEL)
+                                          == OK):
+            new_save_file_path = os.path.join(os.path.dirname(self.save_file_path),
+                                                new_name+SONG_LIST_EXTENSION).lower()
+            old_save_file_path = os.path.normpath(self.save_file_path.lower())
+            new_save_file_path = os.path.normpath(new_save_file_path.lower())
+            print('OLD:', old_save_file_path)
+            print('NEW:', new_save_file_path)
+            if new_save_file_path != old_save_file_path:
+                new_save_file_path = os.path.abspath(new_save_file_path)
+                self.save_as(new_save_file_path)
+                if os.path.exists(old_save_file_path):
+                    os.remove(old_save_file_path)
+                    self.player.eject()
+                    rmtree(self.get_playback_dir_path(old_save_file_path))
+                self.buttonListHeader.setText(new_name)
+                self.buttonListHeader.setToolTip(new_name)
         self.normal_mode()
         if not self.is_empty():
             self.player.load(self.song(self.playing))
@@ -632,6 +639,7 @@ class SongListWidget(QtWidgets.QWidget):
                             if try_file_name != file_name and self.show_message_box(warning, 
                                                         ok_text='Добавить файл',
                                                         cancel_text='Найти другой файл',
+                                                        default_button=CANCEL,
                                                         ) == CANCEL:
                                 print('wrong file! Try to find another')
                                 file_path = ''
@@ -685,7 +693,9 @@ class SongListWidget(QtWidgets.QWidget):
         look_for = file_list   #каждый файл списка ищем среди файлов папки
         if search_in_list:
             search_here = file_list     #каждый файл папки ищем среди файлов списка
-            look_for = self.get_playback_dir_filenames(search_dir) 
+            look_for = self.get_playback_dir_filenames(search_dir)
+        search_here = tuple(file_name.casefold() for file_name in search_here) 
+        look_for = tuple(file_name.casefold() for file_name in look_for)
         result = []
         for file_name in look_for:
             if file_name in search_here and not not_found:
@@ -775,14 +785,16 @@ class SongListWidget(QtWidgets.QWidget):
                                ok_text='OK', 
                                cancel_text='Отмена',
                                middle_text='',
-                               ):
+                               default_button=OK):
         message_box = QtWidgets.QMessageBox()
         message_box.setText(message)
-        message_box.addButton(ok_text,QtWidgets.QMessageBox.AcceptRole)
+        ok_button = message_box.addButton(ok_text,QtWidgets.QMessageBox.AcceptRole)
         middle_button = message_box.addButton(middle_text, QtWidgets.QMessageBox.RejectRole)
         cancel_button = message_box.addButton(cancel_text, QtWidgets.QMessageBox.RejectRole)
         middle_button.hide()
         cancel_button.hide()
+        buttons = (ok_button, middle_button, cancel_button)
+        message_box.setDefaultButton(buttons[default_button])
         checkbox = None
         if middle_text:
             middle_button.show()
