@@ -52,6 +52,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'autoplay_rew': False,
                    'clicker_enabled_in_list_mode': True,
                    'change_pos_step': 250,
+                   'default_save_dir': DEFAULT_SAVE_DIR,
                 }
 
 FOLDER_NOT_FOUND_WARNING = 'Не удалось найти папку с файлами песен!'
@@ -109,6 +110,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.cancel()
         
         self.sliderSignalsVol.sliderReleased.connect(self.test_signal_vol)
+        self.buttonSetDefaultSaveDir.clicked.connect(self.set_default_save_dir)
         self.buttonSave.clicked.connect(self.save)
         self.buttonCancel.clicked.connect(self.cancel)
     
@@ -126,6 +128,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxAutoplayRew.setChecked(options_set.get('autoplay_rew'))
         self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
         self.spinBoxChangePosStep.setValue(options_set.get('change_pos_step'))
+        self.lineDefaultSaveDir.setText(options_set.get('default_save_dir'))
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
@@ -137,7 +140,8 @@ class OptionsDialog(QtWidgets.QDialog):
                        'autoplay_fforw': self.checkBoxAutoplayFforw.isChecked(),
                        'autoplay_rew': self.checkBoxAutoplayRew.isChecked(),
                        'clicker_enabled_in_list_mode': self.checkBoxKeyControlsEnable.isChecked(),
-                       'change_pos_step': self.spinBoxChangePosStep.value()
+                       'change_pos_step': self.spinBoxChangePosStep.value(),
+                       'default_save_dir': self.lineDefaultSaveDir.text(),
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
@@ -156,6 +160,16 @@ class OptionsDialog(QtWidgets.QDialog):
             volume = self.sliderSignalsVol.value()
             self.player.play_beep(enabled=True, 
                                     volume=volume)
+                                    
+    def set_default_save_dir(self):
+        save_dir = QtWidgets.QFileDialog.getExistingDirectory(self,
+                                        'Выбрать папку',
+                                        self.lineDefaultSaveDir.text())
+        if save_dir:
+            self.lineDefaultSaveDir.setText(save_dir)
+    
+    def save_dir(self):
+        return self.lineDefaultSaveDir.text()
        
 
 class SongWidget(QtWidgets.QWidget):
@@ -253,7 +267,7 @@ class SongWidget(QtWidgets.QWidget):
         
 
 class SongListWidget(QtWidgets.QWidget):
-    def __init__(self, player):
+    def __init__(self, player, options):
         super().__init__()
         
         #GUI settings
@@ -274,12 +288,13 @@ class SongListWidget(QtWidgets.QWidget):
         self.buttonClearList.clicked.connect(self.clear)
         self.buttonDeleteList.clicked.connect(self.delete)
         
+        self.options = options
         self.player = player
         self.renamed_song = None
         self.id_source = 0
         self.playback_dir = DEFAULT_PLAYBACK_DIR
-        if not os.path.exists(DEFAULT_SAVE_DIR):
-            os.mkdir(DEFAULT_SAVE_DIR)
+        if not os.path.exists(self.options.save_dir()):
+            os.mkdir(self.options.save_dir())
         self.save_file_path = ''
         self.selected = 0               #selected song index
         self.playing = self.selected    #playing song index
@@ -457,7 +472,7 @@ class SongListWidget(QtWidgets.QWidget):
     def get_new_list_path(self):
         save_name = DEFAULT_SONGLIST_NAME
         while True:
-            save_file_path = os.path.join(DEFAULT_SAVE_DIR, save_name + SONG_LIST_EXTENSION)
+            save_file_path = os.path.join(self.options.save_dir(), save_name + SONG_LIST_EXTENSION)
             if os.path.exists(save_file_path):
                 with open(save_file_path) as save_file:
                     if json.load(save_file):
@@ -505,7 +520,7 @@ class SongListWidget(QtWidgets.QWidget):
     def save_as(self, save_file_path='', blank=False):
         if not save_file_path:
             save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
-                                     os.path.join('.', DEFAULT_SAVE_DIR), 'SongList File (*.sl)')[0]
+                                     os.path.join('.', self.options.save_dir()), 'SongList File (*.sl)')[0]
             self.player.setFocus()
         if save_file_path and save_file_path != self.save_file_path:
             playback_dir_path = self.get_playback_dir_path(save_file_path)
@@ -527,7 +542,7 @@ class SongListWidget(QtWidgets.QWidget):
         if not load_file_path:
             load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
                                                     'Загрузка списка песен', 
-                                                    os.path.join(USER_MUSIC_DIR, 'song_lists'), 
+                                                    self.options.save_dir(), 
                                                     F'SongList File (*{SONG_LIST_EXTENSION})',
                                                     )[0]
             self.player.setFocus()
@@ -602,7 +617,7 @@ class SongListWidget(QtWidgets.QWidget):
             if message_result == OK:
                 new_playback_dir = QtWidgets.QFileDialog.getExistingDirectory(self,
                                                         'Выбрать папку',
-                                                        os.path.join(USER_MUSIC_DIR, 'song_lists'))
+                                                        self.options.save_dir())
                 if new_playback_dir:
                     os.mkdir(playback_dir)
                     for file_name in self.find_files(file_names_list, new_playback_dir, search_in_list=True):
@@ -629,7 +644,7 @@ class SongListWidget(QtWidgets.QWidget):
                         relevant_file_name = self.get_relevant_file_name(file_name)
                         file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
                                                         F'Найти файл {file_name}',
-                                                        os.path.join(USER_MUSIC_DIR, 'song_lists'),
+                                                        self.options.save_dir(),
                                                         F'*{relevant_file_name}')[0]
                         
                         if file_path:
@@ -1017,9 +1032,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                                      'text': 'Repeat all',
                                      'icon':  self.REPEAT_ALL_ICON,
                                   },
-                       }                              
-        self.save_dir = DEFAULT_SAVE_DIR
-        
+                       }
         self.deck_L = QMediaPlayer()
         self.deck_L.setNotifyInterval(250)
         self.deck_L.positionChanged.connect(self.update_playback_slider)
@@ -1108,7 +1121,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         
         self.show_automations(False)
         
-        self.list = SongListWidget(self)
+        self.list = SongListWidget(self, self.options)
         self.layoutSongList.addWidget(self.list)
         
         self.tab_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Tab), self)
