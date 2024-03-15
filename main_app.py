@@ -491,7 +491,9 @@ class SongListWidget(QtWidgets.QWidget):
         songs_info = []
         for song in self.list.get_all_songs():
             print(song.name[:3], end=', ')
-            songs_info.append(self.list.get_song_info(song))
+            song_info = self.list.get_song_info(song)
+            song_info.pop('path')
+            songs_info.append(song_info)
         #print('Save file path:', self.save_file_path)
         with open(self.save_file_path, 'w') as save_file:
             json.dump(songs_info, save_file, indent=4)
@@ -964,7 +966,7 @@ class SongList(QtWidgets.QListWidget):
     def get_song_info(self, song):
         #waveform = song.waveform or []
         song_info = {'id': song.id,
-                    #'path': song.path,
+                    'path': song.path,
                     'name': song.name,
                     'file_type': song.file_type,
                     'volume': song.volume,
