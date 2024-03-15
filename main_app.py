@@ -36,8 +36,8 @@ MAIN_WINDOW_UI_PATH = os.path.join(BASE_DIR, 'GUI/main_window.ui')
 OPTIONS_DIALOG_UI_PATH = os.path.join(BASE_DIR, 'GUI/options.ui')
 DEFAULT_SIGNAL_PATH = os.path.join(BASE_DIR, 'assets/signal.wav')
 
-DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/new_songlist_music/')
-DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/')
+DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/new_songlist_music')
+DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists')
 SONG_LIST_EXTENSION = '.sl'
 SUPPORTED_FILE_TYPES = '.mp3', '.wav', '.m4a', '.mpeg'
 DEFAULT_SONGLIST_NAME = 'New_songlist'
@@ -489,9 +489,8 @@ class SongListWidget(QtWidgets.QWidget):
         self.buttonListHeader.setText(list_name)
         self.buttonListHeader.setToolTip(list_name)
         songs_info = []
-        for song in self.list.get_all_songs():
-            print(song.name[:3], end=', ')
-            song_info = self.list.get_song_info(song)
+        for song_info in self.list.get_all_songs(info=True):
+            print(song_info.get('name')[:3], end=', ')
             song_info.pop('path')
             songs_info.append(song_info)
         #print('Save file path:', self.save_file_path)
@@ -500,23 +499,25 @@ class SongListWidget(QtWidgets.QWidget):
             #json.dump(list(reversed(songs_info)), save_file, indent=4)
         if check_filenames:
             song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
-            for filename in self.get_playback_dir_filenames():
-                if filename not in song_filenames:
-                    message_result = None
-                    if not silent:
-                        warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
-                        message_result = self.show_message_box(warning, 
-                                                        ok_text='Удалить',
-                                                        cancel_text='Оставить', 
-                                                        checkbox_text='Применить ко всем')
-                    if silent or message_result == OK or message_result == OK_CHECKED:
-                        os.remove(os.path.join(self.playback_dir, filename))
-                        print('REMOVED:', filename)
-                        if message_result == OK_CHECKED:
-                            print('silent = True')
-                            silent = True
-                    elif message_result == CANCEL_CHECKED:
-                        break                
+            for filename in self.find_files(file_list=song_filenames, 
+                                            search_dir=self.playback_dir,
+                                            search_in_list=True,
+                                            not_found=True):
+                message_result = None
+                if not silent:
+                    warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
+                    message_result = self.show_message_box(warning, 
+                                                    ok_text='Удалить',
+                                                    cancel_text='Оставить', 
+                                                    checkbox_text='Применить ко всем')
+                if silent or message_result == OK or message_result == OK_CHECKED:
+                    os.remove(os.path.join(self.playback_dir, filename))
+                    print('REMOVED:', filename)
+                    if message_result == OK_CHECKED:
+                        print('silent = True')
+                        silent = True
+                elif message_result == CANCEL_CHECKED:
+                    break                
         print('saved')
     
     def save_as(self, save_file_path='', blank=False):
@@ -711,13 +712,12 @@ class SongListWidget(QtWidgets.QWidget):
         if search_in_list:
             search_here = file_list     #каждый файл папки ищем среди файлов списка
             look_for = self.get_playback_dir_filenames(search_dir)
-        search_here = tuple(file_name.casefold() for file_name in search_here) 
-        look_for = tuple(file_name.casefold() for file_name in look_for)
+        search_here_casefolded = tuple(file_name.casefold() for file_name in search_here) 
         result = []
         for file_name in look_for:
-            if file_name in search_here and not not_found:
+            if file_name.casefold() in search_here_casefolded and not not_found:
                 result.append(file_name)
-            elif not file_name in search_here and not_found:
+            elif not file_name.casefold() in search_here_casefolded and not_found:
                 result.append(file_name)
         return result
     
