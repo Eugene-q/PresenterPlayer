@@ -292,10 +292,10 @@ class SongListWidget(QtWidgets.QWidget):
         self.player = player
         self.renamed_song = None
         self.id_source = 0
+        self.save_file_path = ''
         self.playback_dir = DEFAULT_PLAYBACK_DIR
         if not os.path.exists(self.options.save_dir()):
             os.mkdir(self.options.save_dir())
-        self.save_file_path = ''
         self.selected = 0               #selected song index
         self.playing = self.selected    #playing song index
         self.set_current_row(0)
@@ -626,72 +626,74 @@ class SongListWidget(QtWidgets.QWidget):
                     for file_name in self.find_files(file_names_list, new_playback_dir, search_in_list=True):
                         copyfile(os.path.join(new_playback_dir, file_name), 
                                  os.path.join(playback_dir, file_name))
-                    valid = self.project_is_valid(load_file_path)
+                    return self.project_is_valid(load_file_path)
         else:
             print('playback dir is valid...')
-            files_not_found = self.find_files(file_names_list, playback_dir, not_found=True)
-            files_to_process = files_not_found
-            print('files not found:', files_not_found)
-            for file_name in files_not_found:
+            files_not_found = self.find_files(file_names_list, playback_dir, not_found=True)    
+            file_path = ''
+            show_choice = True
+            while files_not_found:
+                file_name = files_not_found[0]
                 warning = SONGFILE_NOT_FOUND_WARNING.format(file_name)
-                file_path = ''
-                show_choice = True
-                while not file_path:
-                    if show_choice:
-                        choice_result = self.show_message_box(warning, 
-                                                        ok_text='Найти файл',
-                                                        cancel_text='Удалить песню из списка',
-                                                        middle_text='Отменить загрузку списка', 
-                                                        checkbox_text='Для всех файлов')
-                    if choice_result == OK or choice_result == OK_CHECKED:
-                        relevant_file_name = self.get_relevant_file_name(file_name)
-                        file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
-                                                        F'Найти файл {file_name}',
-                                                        self.options.save_dir(),
-                                                        F'*{relevant_file_name}')[0]
-                        
-                        if file_path:
-                            print('file_path recieved...')
-                            try_playback_dir, try_file_name = os.path.split(file_path)
-                            warning = WRONG_FILE_NAME_WARNING.format(file_name, try_file_name)
-                            if try_file_name != file_name and self.show_message_box(warning, 
-                                                        ok_text='Добавить файл',
-                                                        cancel_text='Найти другой файл',
-                                                        default_button=CANCEL,
-                                                        ) == CANCEL:
-                                print('wrong file! Try to find another')
+                print('files not found:', files_not_found)
+                if show_choice:
+                    choice_result = self.show_message_box(warning, 
+                                                    ok_text='Найти файл',
+                                                    cancel_text='Удалить песню из списка',
+                                                    middle_text='Отменить загрузку списка', 
+                                                    checkbox_text='Для всех файлов')
+                if choice_result == OK or choice_result == OK_CHECKED:
+                    relevant_file_name = self.get_relevant_file_name(file_name)
+                    file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
+                                                    F'Найти файл {file_name}',
+                                                    self.options.save_dir(),
+                                                    F'*{relevant_file_name}')[0]
+                    
+                    if file_path:
+                        print('file_path recieved...')
+                        try_playback_dir, try_file_name = os.path.split(file_path)
+                        warning = WRONG_FILE_NAME_WARNING.format(file_name, try_file_name)
+                        if try_file_name != file_name and self.show_message_box(warning, 
+                                                    ok_text='Добавить файл',
+                                                    cancel_text='Найти другой файл',
+                                                    default_button=CANCEL,
+                                                    ) == CANCEL:
+                            print('wrong file! Try to find another')
+                            file_path = ''
+                            continue 
+                        if choice_result == OK_CHECKED:
+                            print('apply to all files:')
+                            show_choice = False
+                            for try_file_name in self.find_files(files_not_found, try_playback_dir):
+                                print('found file:', try_file_name)
+                                copyfile(os.path.join(try_playback_dir, try_file_name), 
+                                         os.path.join(playback_dir, try_file_name))
+                                files_not_found.remove(try_file_name)
+                                print('file copied to', os.path.join(playback_dir, try_file_name))
+                            if files_not_found:
+                                print('some files are not found')
+                                choice_result = OK
                                 file_path = ''
-                                show_choice = False
-                                continue 
-                            if choice_result == OK_CHECKED:
-                                show_choice = False
-                                for try_file_name in self.find_files(files_to_process, try_playback_dir):
-                                    copyfile(os.path.join(try_playback_dir, try_file_name), 
-                                             os.path.join(playback_dir, try_file_name))
-                                    files_to_process.remove(try_file_name)
-                                if files_to_process:
-                                    file_path = ''
-                            else:
-                                copyfile(file_path, os.path.join(playback_dir, file_name))
-                                files_to_process.remove(file_name)
                         else:
-                            show_choice = True
-                    elif choice_result == CANCEL or choice_result == CANCEL_CHECKED:
-                        print('deleting song', file_name)
-                        if choice_result == CANCEL_CHECKED:
-                            songs_info = self.remove_info_by_filename(files_to_process, songs_info)
-                            files_to_process.clear()
-                            file_path = 'pass'
-                        else:
-                            file_names_list.remove(file_name)
-                            files_to_process.remove(file_name)
-                            songs_info = self.remove_info_by_filename((file_name,), songs_info)
-                            file_path = 'pass'
-                    elif choice_result == MIDDLE or choice_result == MIDDLE_CHECKED:
-                        valid = False
-                        return
-                if not files_to_process:
-                    break
+                            copyfile(file_path, os.path.join(playback_dir, file_name))
+                            files_not_found.remove(file_name)
+                    else:
+                        show_choice = True
+                elif choice_result == CANCEL or choice_result == CANCEL_CHECKED:
+                    print('deleting song', file_name)
+                    if choice_result == CANCEL_CHECKED:
+                        songs_info = self.remove_info_by_filename(files_not_found, songs_info)
+                        print('all songs removed.')
+                        files_not_found.clear()
+                        file_path = 'pass'
+                    else:
+                        #file_names_list.remove(file_name)
+                        files_not_found.remove(file_name)
+                        songs_info = self.remove_info_by_filename((file_name,), songs_info)
+                        file_path = 'pass'
+                elif choice_result == MIDDLE or choice_result == MIDDLE_CHECKED:
+                    valid = False
+                    return
             print('all files found. VALIDATED!')
             valid = True
         with open(load_file_path, 'w') as save_file:
@@ -1135,15 +1137,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                                                    # QtGui.QKeyEvent(type=QtCore.QEvent.KeyPress, 
                                                                     #key=QtCore.Qt.Key_Tab,
                                                                    # modifiers=[])
-                                                    #))
-        
-        if not os.path.exists(self.options.last_playlist_path):
-            self.list.save_as(DEFAULT_SAVE_DIR + 
-                              DEFAULT_SONGLIST_NAME + 
-                              SONG_LIST_EXTENSION)
+                                                    #)) 
+                                                    
+                                                    
+        save_file_path = self.options.last_playlist_path  # делается здесь, потому что self.list 
+        if not os.path.exists(save_file_path):            # уже должен существовать для корректной работы
+            save_file_path = self.list.get_new_list_path()# его методов.
+            self.list.save_as(save_file_path)
         else:
-            self.list.load(self.options.last_playlist_path)
-            
+            self.list.load(save_file_path)   
         if self.list.is_empty():
             self.enable(False)
         self.setFocus()
