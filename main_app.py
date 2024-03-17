@@ -290,6 +290,7 @@ class SongListWidget(QtWidgets.QWidget):
         
         self.options = options
         self.player = player
+        self.new_list_created = False
         self.renamed_song = None
         self.id_source = 0
         self.save_file_path = ''
@@ -434,13 +435,13 @@ class SongListWidget(QtWidgets.QWidget):
     def save_list_name(self):
         new_name = self.lineListHeader.text()
         new_file_name = new_name + SONG_LIST_EXTENSION
-        if (not self.find_files((new_file_name,), os.path.dirname(self.save_file_path)) or
+        save_dir = os.path.dirname(self.save_file_path)
+        if (not self.find_files((new_file_name,), save_dir) or
                     self.show_message_box(LIST_FILE_EXISTS_WARNING.format(new_name), 
                                           ok_text='Перезаписать',
                                           default_button=CANCEL)
                                           == OK):
-            new_save_file_path = os.path.join(os.path.dirname(self.save_file_path),
-                                                new_name+SONG_LIST_EXTENSION).lower()
+            new_save_file_path = os.path.join(save_dir, new_name+SONG_LIST_EXTENSION).lower()
             old_save_file_path = os.path.normpath(self.save_file_path.lower())
             new_save_file_path = os.path.normpath(new_save_file_path.lower())
             print('OLD:', old_save_file_path)
@@ -448,13 +449,14 @@ class SongListWidget(QtWidgets.QWidget):
             if new_save_file_path != old_save_file_path:
                 new_save_file_path = os.path.abspath(new_save_file_path)
                 self.save_as(new_save_file_path)
-                if os.path.exists(old_save_file_path):
+                if os.path.exists(old_save_file_path) and not self.new_list_created:
                     os.remove(old_save_file_path)
                     self.player.eject()
                     rmtree(self.get_playback_dir_path(old_save_file_path))
                 self.buttonListHeader.setText(new_name)
                 self.buttonListHeader.setToolTip(new_name)
         self.normal_mode()
+        self.new_list_created = False
         if not self.is_empty():
             self.player.load(self.song(self.playing))
         else:
@@ -463,13 +465,11 @@ class SongListWidget(QtWidgets.QWidget):
     def new_list(self):
         self.save()
         self.clear(silent=True)
-        save_file_path = self.get_new_list_path()
-        self.save_as(save_file_path)
-        save_file_name = os.path.splitext(os.path.basename(save_file_path))[0]
-        #print(save_file_name)
-        self.rename_mode(name=save_file_name)
+        new_list_name = self.get_new_list_path(just_name=True)
+        self.new_list_created = True
+        self.rename_mode(name=new_list_name)
     
-    def get_new_list_path(self):
+    def get_new_list_path(self, just_name=False):
         save_name = DEFAULT_SONGLIST_NAME
         while True:
             save_file_path = os.path.join(self.options.save_dir(), save_name + SONG_LIST_EXTENSION)
@@ -481,6 +481,8 @@ class SongListWidget(QtWidgets.QWidget):
                         break
             else:
                 break
+        if just_name:
+            return save_name
         return save_file_path
     
     def save(self, check_filenames=True, silent=False):
@@ -535,6 +537,7 @@ class SongListWidget(QtWidgets.QWidget):
                 for song in self.list.get_all_songs():
                     new_song_path = os.path.join(playback_dir_path, song.name + song.file_type)
                     copyfile(song.path, new_song_path)
+                self.list.set_playback_dir(playback_dir_path)
             self.save_file_path = save_file_path
         self.save()
                   
@@ -982,6 +985,13 @@ class SongList(QtWidgets.QListWidget):
         }
         return song_info
         
+    
+    def set_playback_dir(self, playback_dir):
+        for i in range(self.count()):
+            item = self.item(i)
+            song = self.itemWidget(item)
+            new_song_path = os.path.join(playback_dir, song.name+song.file_type)
+            song.path = new_song_path 
                     
 class ClickerPlayerApp(QtWidgets.QMainWindow):
     START_VOLUME = 50
