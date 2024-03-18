@@ -992,7 +992,8 @@ class SongList(QtWidgets.QListWidget):
             song = self.itemWidget(item)
             new_song_path = os.path.join(playback_dir, song.name+song.file_type)
             song.path = new_song_path 
-                    
+ 
+                   
 class ClickerPlayerApp(QtWidgets.QMainWindow):
     START_VOLUME = 50
     MAX_VOL = 100
@@ -1582,6 +1583,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('VOLUME:', self.master_volume)
     
     def change_fade_range(self, fade_range=None):
+        print('CHANGE FADE RANGE: fade_range:', fade_range)
         song = self.list.song(self.list.playing)
         if not fade_range:     #slider released
             fadein_pos, fadeout_pos = self.sliderFadeRange.value()
@@ -1727,6 +1729,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deny_playback_automation()
         self.deny_volume_automation()
         self.deck_L.stop()
+        self.list.save()
         event.accept()
     
     def resizeEvent(self, event):
