@@ -1400,16 +1400,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     
     def change_range(self, pbrange=None):
         song = self.list.song(self.list.playing)
-        fade_in, fade_out = song.fade_range
+        prev_fadein, prev_fadeout = song.fade_range
+        prev_start, prev_end = song.start_pos, song.end_pos
+        prev_fadein_delta = prev_fadein - prev_start
+        prev_fadeout_delta = prev_fadeout - prev_end
         if not pbrange:  #slider released
             start_pos, end_pos = self.sliderPlaybackRange.value()
         else:       #button set range
             start_pos, end_pos = pbrange
             self.sliderPlaybackRange.setValue(pbrange)
-        fade_in_delta = fade_in - song.start_pos
-        fade_out_delta = fade_out - song.end_pos
-        #song.start_pos = start_pos
-        #song.end_pos = end_pos
         if (song.start_pos, song.end_pos) != (start_pos, end_pos):
             song.set_playback_range((start_pos, end_pos))
             self.list.save()
@@ -1418,10 +1417,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.change_pos(start_pos)
         elif self.sliderPlaybackPos.value() > end_pos:
             self.change_pos(end_pos)
-        if fade_in_delta:
-            fade_in = song.start_pos + fade_in_delta
-        if fade_out_delta:
-            fade_out = song.end_pos + fade_out_delta
+        fade_in = song.start_pos + max(prev_fadein_delta, 0)
+        fade_out = song.end_pos + min(prev_fadeout_delta, 0)
         self.change_fade_range((fade_in, fade_out))
     
     def set_range(self):
@@ -1583,7 +1580,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('VOLUME:', self.master_volume)
     
     def change_fade_range(self, fade_range=None):
-        print('CHANGE FADE RANGE: fade_range:', fade_range)
+        #print('CHANGE FADE RANGE: fade_range:', fade_range)
         song = self.list.song(self.list.playing)
         if not fade_range:     #slider released
             fadein_pos, fadeout_pos = self.sliderFadeRange.value()
