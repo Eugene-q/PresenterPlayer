@@ -929,13 +929,16 @@ class SongList(QtWidgets.QListWidget):
         raw_drop_index = self.indexAt(event.pos()).row()
         drop_indicator = self.dropIndicatorPosition()
         from_index = self.currentRow()
+        if raw_drop_index == -1: # песню утянули в самый низ списка
+            raw_drop_index = self.count() - 1
+            drop_indicator = 2
         if raw_drop_index > from_index:
             drop_index = raw_drop_index + (drop_indicator - 2)
         else:
             drop_index = raw_drop_index + (drop_indicator - 1)
         if drop_index != from_index:
             playing = self.widget.playing
-            print('playing song index', playing)
+            #print('playing song index', playing)
             if playing == from_index:
                 self.widget.playing = drop_index
             elif from_index < playing and drop_index >= playing:
@@ -947,6 +950,7 @@ class SongList(QtWidgets.QListWidget):
             print('drop index', drop_index)
             print('playing index =', self.widget.playing)
             super().dropEvent(event)
+            self.widget.change_row(drop_index)
             self.widget.save()
         
     def get_all_songs(self, info=False):
