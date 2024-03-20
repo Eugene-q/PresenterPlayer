@@ -744,10 +744,13 @@ class SongListWidget(QtWidgets.QWidget):
             row = target
         current_row = self.list.currentRow()
         print('SET ROW from',current_row , 'to', row)
-        self.list.setCurrentRow(row)
-        if playing:
+        self.list.setCurrentRow(row) # смена строки вызывает change_row,
+        row_changed = current_row != row # если строка поменялась
+        if not row_changed:
+            self.change_row(row)
+        if playing:                  
             self.playing = row
-        return current_row != row
+        return row_changed
              
     def change_row(self, row):
         print()
@@ -942,7 +945,7 @@ class SongList(QtWidgets.QListWidget):
             print('drop indicator position:', self.dropIndicatorPosition())
             print('from index', from_index)
             print('drop index', drop_index)
-            print('playing =', self.widget.playing)
+            print('playing index =', self.widget.playing)
             super().dropEvent(event)
             self.widget.save()
         
