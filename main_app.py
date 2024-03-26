@@ -52,6 +52,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'autoplay_rew': False,
                    'clicker_enabled_in_list_mode': True,
                    'change_pos_step': 250,
+                   'rename_delete_old_list': False,
                    'default_save_dir': DEFAULT_SAVE_DIR,
                 }
 
@@ -128,6 +129,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxAutoplayRew.setChecked(options_set.get('autoplay_rew'))
         self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
         self.spinBoxChangePosStep.setValue(options_set.get('change_pos_step'))
+        self.checkBoxRenameDeleteOldList.setChecked(options_set.get('rename_delete_old_list'))
         self.lineDefaultSaveDir.setText(options_set.get('default_save_dir'))
 
     def save(self):
@@ -141,6 +143,7 @@ class OptionsDialog(QtWidgets.QDialog):
                        'autoplay_rew': self.checkBoxAutoplayRew.isChecked(),
                        'clicker_enabled_in_list_mode': self.checkBoxKeyControlsEnable.isChecked(),
                        'change_pos_step': self.spinBoxChangePosStep.value(),
+                       'rename_delete_old_list': self.checkBoxRenameDeleteOldList.isChecked(),
                        'default_save_dir': self.lineDefaultSaveDir.text(),
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
@@ -433,13 +436,13 @@ class SongListWidget(QtWidgets.QWidget):
                 self.save(check_filenames=False)
     
     def save_list_name(self):
+        delete_old_list = self.options.checkBoxRenameDeleteOldList.isChecked()
         new_name = self.lineListHeader.text()
         new_file_name = new_name + SONG_LIST_EXTENSION
         save_dir = os.path.dirname(self.save_file_path)
         if (not self.find_files((new_file_name,), save_dir) or
                     self.show_message_box(LIST_FILE_EXISTS_WARNING.format(new_name), 
-                                          ok_text='Перезаписать',
-                                          default_button=CANCEL)
+                                          ok_text='Перезаписать', default_button=CANCEL)
                                           == OK):
             new_save_file_path = os.path.join(save_dir, new_name+SONG_LIST_EXTENSION).lower()
             old_save_file_path = os.path.normpath(self.save_file_path.lower())
@@ -449,7 +452,10 @@ class SongListWidget(QtWidgets.QWidget):
             if new_save_file_path != old_save_file_path:
                 new_save_file_path = os.path.abspath(new_save_file_path)
                 self.save_as(new_save_file_path)
-                if os.path.exists(old_save_file_path) and not self.new_list_created:
+                if (os.path.exists(old_save_file_path) and
+                         not self.new_list_created and
+                         self.options.checkBoxRenameDeleteOldList.isChecked()
+                         ):
                     os.remove(old_save_file_path)
                     self.player.eject()
                     rmtree(self.get_playback_dir_path(old_save_file_path))
