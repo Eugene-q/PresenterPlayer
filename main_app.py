@@ -1553,14 +1553,15 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             
     def song_vol_change(self, vol, move_slider=False):
         print('SONG VOLUME CHANGE: changed to', vol)
+        self.song_volume = vol
         if move_slider: #слайдер вызывает этот же метод при перемещении, если его позиция изменилась
             self.sliderSongVol.setValue(self.song_volume)
-        self.song_volume = vol
         self.apply_volume()
         
     def song_vol_write(self,):
         print('song vol writed:', self.song_volume)
         self.list.song(self.list.playing).volume = self.song_volume
+        self.change_fade_range()
         if self.state == PLAYING:
             self.start_volume_update()
             
