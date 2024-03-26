@@ -53,6 +53,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'clicker_enabled_in_list_mode': True,
                    'change_pos_step': 250,
                    'rename_delete_old_list': False,
+                   'default_music_dir': USER_MUSIC_DIR,
                    'default_save_dir': DEFAULT_SAVE_DIR,
                 }
 
@@ -111,7 +112,10 @@ class OptionsDialog(QtWidgets.QDialog):
         self.cancel()
         
         self.sliderSignalsVol.sliderReleased.connect(self.test_signal_vol)
-        self.buttonSetDefaultSaveDir.clicked.connect(self.set_default_save_dir)
+        self.buttonSetDefaultSaveDir.clicked.connect(
+                            lambda: self.set_default_dir(self.lineDefaultSaveDir))
+        self.buttonSetDefaultMusicDir.clicked.connect(
+                            lambda: self.set_default_dir(self.lineDefaultMusicDir))
         self.buttonSave.clicked.connect(self.save)
         self.buttonCancel.clicked.connect(self.cancel)
     
@@ -130,6 +134,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
         self.spinBoxChangePosStep.setValue(options_set.get('change_pos_step'))
         self.checkBoxRenameDeleteOldList.setChecked(options_set.get('rename_delete_old_list'))
+        self.lineDefaultMusicDir.setText(options_set.get('default_music_dir'))
         self.lineDefaultSaveDir.setText(options_set.get('default_save_dir'))
 
     def save(self):
@@ -144,6 +149,7 @@ class OptionsDialog(QtWidgets.QDialog):
                        'clicker_enabled_in_list_mode': self.checkBoxKeyControlsEnable.isChecked(),
                        'change_pos_step': self.spinBoxChangePosStep.value(),
                        'rename_delete_old_list': self.checkBoxRenameDeleteOldList.isChecked(),
+                       'default_music_dir': self.lineDefaultMusicDir.text(),
                        'default_save_dir': self.lineDefaultSaveDir.text(),
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
@@ -164,13 +170,13 @@ class OptionsDialog(QtWidgets.QDialog):
             self.player.play_beep(enabled=True, 
                                     volume=volume)
                                     
-    def set_default_save_dir(self):
-        save_dir = QtWidgets.QFileDialog.getExistingDirectory(self,
+    def set_default_dir(self, dir_line):
+        _dir = QtWidgets.QFileDialog.getExistingDirectory(self,
                                         'Выбрать папку',
-                                        self.lineDefaultSaveDir.text())
-        if save_dir:
-            self.lineDefaultSaveDir.setText(save_dir)
-    
+                                        dir_line.text())
+        if _dir:
+            dir_line.setText(_dir)
+            
     def save_dir(self):
         return self.lineDefaultSaveDir.text()
        
@@ -332,7 +338,7 @@ class SongListWidget(QtWidgets.QWidget):
                 supported_file_types = ' *'.join(SUPPORTED_FILE_TYPES)
                 filepaths = QtWidgets.QFileDialog.getOpenFileNames(self, 
                                                         'Добавить дорожки', 
-                                                        USER_MUSIC_DIR, 
+                                                        self.options.lineDefaultMusicDir.text(), 
                                                         F'Music Files (*{supported_file_types})',
                                                         )[0]
                 self.player.setFocus()
