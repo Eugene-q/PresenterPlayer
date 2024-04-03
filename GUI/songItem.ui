@@ -28,7 +28,7 @@
   <property name="maximumSize">
    <size>
     <width>1200</width>
-    <height>32</height>
+    <height>100</height>
    </size>
   </property>
   <layout class="QHBoxLayout" name="layoutSongItem">
@@ -53,7 +53,7 @@
    <item>
     <widget class="QToolButton" name="buttonPlay">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -80,8 +80,8 @@ background-color: Red;
      </property>
      <property name="iconSize">
       <size>
-       <width>14</width>
-       <height>14</height>
+       <width>20</width>
+       <height>20</height>
       </size>
      </property>
      <property name="checkable">
@@ -109,11 +109,19 @@ background-color: Red;
      <property name="maximumSize">
       <size>
        <width>5000</width>
-       <height>20</height>
+       <height>100</height>
       </size>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>20</pointsize>
+      </font>
      </property>
      <property name="toolTip">
       <string/>
+     </property>
+     <property name="styleSheet">
+      <string notr="true"/>
      </property>
      <property name="text">
       <string>Название песни</string>
@@ -131,8 +139,36 @@ background-color: Red;
      <property name="enabled">
       <bool>true</bool>
      </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>20</pointsize>
+      </font>
+     </property>
      <property name="focusPolicy">
       <enum>Qt::NoFocus</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="buttonDuplicate">
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../assets/icons.qrc">
+       <normaloff>:/song/icons/wave copy.png</normaloff>:/song/icons/wave copy.png</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>14</width>
+       <height>14</height>
+      </size>
      </property>
     </widget>
    </item>

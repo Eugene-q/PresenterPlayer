@@ -219,7 +219,18 @@ class SongWidget(QtWidgets.QWidget):
         self.song_list = parent
         
         uic.loadUi(SONG_ITEM_UI_PATH, self)
+        button_size = self.labelSongName.fontMetrics().height()
+        #self.buttonPlay.setBaseSize(100, 100)
+        #self.buttonPlay.iconSize().scale(50, 50, QtCore.Qt.KeepAspectRatio)
+        #self.buttonRepeat.clicked.connect(self.player.set_repeat)
+        #self.buttonDelete.clicked.connect(self.delete_song_widget)
+        #self.buttonMute.clicked.connect(self.mute_song)
+        #self.buttonRepeat.setChecked(song_widget.repeat)
+        #self.buttonMute.setChecked(song_widget.muted)
+        #self.buttonDuplicate.setBaseSize(100, 100)
+        
         self.labelSongName.setText(name)
+        self.labelSongName.setFont(QtGui.QFont('Arial', 20))
         self.labelSongName.setToolTip(name)
         
         self.lineNewSongName.returnPressed.connect(self.save_name)
@@ -413,13 +424,18 @@ class SongListWidget(QtWidgets.QWidget):
                 #self.player.load(self.song(0))
                 self.set_row(0)
     
-    def add_song_widget(self, song_widget):
+    def add_song_widget(self, song_widget, row=False):
         item = QtWidgets.QListWidgetItem()
-        item.setSizeHint(QtCore.QSize(1, LIST_ITEM_HEIGHT)) #width based on parent, height = 28
-        self.list.addItem(item)
+        item_height = song_widget.labelSongName.fontMetrics().height() + 10 #returns font size + 9
+        item.setSizeHint(QtCore.QSize(1, item_height)) #LIST_ITEM_HEIGHT)) #width based on parent, height = 28
+        if row is False:
+            self.list.addItem(item)
+        else:
+            self.list.insertItem(row, item)
         self.list.setItemWidget(item, song_widget)
     
         song_widget.buttonPlay.clicked.connect(self.player.play_pause)
+        song_widget.buttonDuplicate.clicked.connect(self.duplicate_song_widget)
         song_widget.buttonRepeat.clicked.connect(self.player.set_repeat)
         song_widget.buttonDelete.clicked.connect(self.delete_song_widget)
         song_widget.buttonMute.clicked.connect(self.mute_song)
@@ -427,6 +443,29 @@ class SongListWidget(QtWidgets.QWidget):
         song_widget.buttonMute.setChecked(song_widget.muted)
         if song_widget.muted:
             song_widget.buttonPlay.setDisabled(True)
+
+    def duplicate_song_widget(self):
+        parent_song = self.sender().parent()
+        song_widget = SongWidget(parent=self,
+                                id=self.get_id(),
+                                path=parent_song.path,
+                                name=parent_song.name,
+                                file_type=parent_song.file_type,
+                                volume=parent_song.volume,
+                                length=parent_song.length,
+                                start_pos=parent_song.start_pos,
+                                end_pos=parent_song.end_pos,
+                                repeat=parent_song.repeat,
+                                fade_range=parent_song.fade_range,
+                                muted=parent_song.muted,
+                                waveform=parent_song.waveform
+                                )
+        parent_index = self.list.get_song_index(parent_song)
+        self.add_song_widget(song_widget, row=parent_index + 1)
+        if parent_index < self.playing:
+            self.playing += 1
+        if parent_index < self.selected:
+            self.selected += 1
 
     def delete_song_widget(self):
         #delete_index = self.list.currentRow()
