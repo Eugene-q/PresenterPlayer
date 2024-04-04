@@ -41,6 +41,8 @@ DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists')
 SONG_LIST_EXTENSION = '.sl'
 SUPPORTED_FILE_TYPES = '.mp3', '.wav', '.m4a', '.mpeg'
 DEFAULT_SONGLIST_NAME = 'New_songlist'
+DEFAULT_SONG_WIDGET_BUTTONS_SIZE = 20
+DEFAULT_SONG_WIDGET_FONT_SIZE = 20
 
 OPTIONS_FILE_PATH = os.path.join(BASE_DIR, 'assets/options.json')
 DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, 
@@ -55,6 +57,8 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'rename_delete_old_list': False,
                    'default_music_dir': USER_MUSIC_DIR,
                    'default_save_dir': DEFAULT_SAVE_DIR,
+                   'song_widget_buttons_size': DEFAULT_SONG_WIDGET_BUTTONS_SIZE,
+                   'song_widget_font_size': DEFAULT_SONG_WIDGET_FONT_SIZE,
                 }
 
 FOLDER_NOT_FOUND_WARNING = 'Не удалось найти папку с файлами песен!'
@@ -96,8 +100,6 @@ PLAYBACK_SLIDER_WAVEFORM_OFFSET = 10
 WAVEFORM_AVERAGING_FRAME_WIDTH = 3
 PLAYBACK_SLIDER_HEIGHT = 27
 
-LIST_ITEM_HEIGHT = 28
-
 
 class OptionsDialog(QtWidgets.QDialog):
     def __init__(self, options_file_path, player):
@@ -116,6 +118,10 @@ class OptionsDialog(QtWidgets.QDialog):
                             lambda: self.set_default_dir(self.lineDefaultSaveDir))
         self.buttonSetDefaultMusicDir.clicked.connect(
                             lambda: self.set_default_dir(self.lineDefaultMusicDir))
+        self.test_song_widget = SongWidget(parent=self, id=None, path='', name='Название песни', length=0)
+        self.layoutSongListWidget.addWidget(self.test_song_widget)
+        self.spinBoxFontSize.valueChanged.connect(self.test_song_widget.update_font)
+        self.spinBoxButtonsSize.valueChanged.connect(self.test_song_widget.update_buttons_size)
         self.buttonSave.clicked.connect(self.save)
         self.buttonCancel.clicked.connect(self.cancel)
     
@@ -136,6 +142,8 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxRenameDeleteOldList.setChecked(options_set.get('rename_delete_old_list'))
         self.lineDefaultMusicDir.setText(options_set.get('default_music_dir'))
         self.lineDefaultSaveDir.setText(options_set.get('default_save_dir'))
+        self.spinBoxButtonsSize.setValue(options_set.get('song_widget_buttons_size'))
+        self.spinBoxFontSize.setValue(options_set.get('song_widget_font_size'))
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
@@ -151,10 +159,16 @@ class OptionsDialog(QtWidgets.QDialog):
                        'rename_delete_old_list': self.checkBoxRenameDeleteOldList.isChecked(),
                        'default_music_dir': self.lineDefaultMusicDir.text(),
                        'default_save_dir': self.lineDefaultSaveDir.text(),
+                       'song_widget_buttons_size': self.spinBoxButtonsSize.value(),
+                       'song_widget_font_size': self.spinBoxFontSize.value(),
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
         self.player.show_automations(self.checkBoxShowAutomations.isChecked())
+        for song in self.player.list.list.get_all_songs():
+            song.update_font(self.spinBoxFontSize.value())
+            song.update_buttons_size(self.spinBoxButtonsSize.value())
+        self.player.list.list.update_items(height=self.spinBoxFontSize.value() + 10)
         self.player.setFocus()
         self.hide()
         
@@ -179,7 +193,7 @@ class OptionsDialog(QtWidgets.QDialog):
             
     def save_dir(self):
         return self.lineDefaultSaveDir.text()
-       
+    
 
 class SongWidget(QtWidgets.QWidget):
     def __init__(self, parent,
@@ -219,20 +233,8 @@ class SongWidget(QtWidgets.QWidget):
         self.song_list = parent
         
         uic.loadUi(SONG_ITEM_UI_PATH, self)
-        button_size = self.labelSongName.fontMetrics().height()
-        #self.buttonPlay.setBaseSize(100, 100)
-        #self.buttonPlay.iconSize().scale(50, 50, QtCore.Qt.KeepAspectRatio)
-        #self.buttonRepeat.clicked.connect(self.player.set_repeat)
-        #self.buttonDelete.clicked.connect(self.delete_song_widget)
-        #self.buttonMute.clicked.connect(self.mute_song)
-        #self.buttonRepeat.setChecked(song_widget.repeat)
-        #self.buttonMute.setChecked(song_widget.muted)
-        #self.buttonDuplicate.setBaseSize(100, 100)
-        
         self.labelSongName.setText(name)
-        self.labelSongName.setFont(QtGui.QFont('Arial', 20))
         self.labelSongName.setToolTip(name)
-        
         self.lineNewSongName.returnPressed.connect(self.save_name)
         self.lineNewSongName.hide()
         #print('song created. fade range:', self.fade_range)
@@ -266,7 +268,23 @@ class SongWidget(QtWidgets.QWidget):
             copyfile(self.path, new_path)
             os.remove(self.path)
             self.path = new_path
-            
+    
+    def update_buttons_size(self, value):
+        self.buttonPlay.setFixedSize(value, value)
+        self.buttonPlay.setIconSize(QtCore.QSize(value, value))
+        self.buttonRepeat.setFixedSize(value, value)
+        self.buttonRepeat.setIconSize(QtCore.QSize(value, value))
+        self.buttonDelete.setFixedSize(value, value)
+        self.buttonDelete.setIconSize(QtCore.QSize(value, value))
+        self.buttonMute.setFixedSize(value, value)
+        self.buttonMute.setIconSize(QtCore.QSize(value, value))
+        self.buttonDuplicate.setFixedSize(value, value)
+        self.buttonDuplicate.setIconSize(QtCore.QSize(value, value))
+    
+    def update_font(self, value):
+        self.labelSongName.setFont(QtGui.QFont('Arial', value))
+        self.lineNewSongName.setFont(QtGui.QFont('Arial', value))
+                
     def set_playback_range(self, playback_range):
         self.start_pos, self.end_pos = playback_range
         self.range_limited = (self.start_pos != 0 or
@@ -343,6 +361,8 @@ class SongListWidget(QtWidgets.QWidget):
                                         muted=info.get('muted'),
                                         waveform=info.get('waveform')
                                         )
+                song_widget.update_font(self.options.spinBoxFontSize.value())
+                song_widget.update_buttons_size(self.options.spinBoxButtonsSize.value())
                 self.add_song_widget(song_widget)
         else:
             if not filenames:           # Добавление песен по кнопке +
@@ -427,7 +447,7 @@ class SongListWidget(QtWidgets.QWidget):
     def add_song_widget(self, song_widget, row=False):
         item = QtWidgets.QListWidgetItem()
         item_height = song_widget.labelSongName.fontMetrics().height() + 10 #returns font size + 9
-        item.setSizeHint(QtCore.QSize(1, item_height)) #LIST_ITEM_HEIGHT)) #width based on parent, height = 28
+        item.setSizeHint(QtCore.QSize(1, item_height)) #width based on parent
         if row is False:
             self.list.addItem(item)
         else:
@@ -1043,13 +1063,17 @@ class SongList(QtWidgets.QListWidget):
         }
         return song_info
         
-    
     def set_playback_dir(self, playback_dir):
         for i in range(self.count()):
             item = self.item(i)
             song = self.itemWidget(item)
             new_song_path = os.path.join(playback_dir, song.name+song.file_type)
             song.path = new_song_path 
+            
+    def update_items(self, height=28):
+        for i in range(self.count()):
+            item = self.item(i)
+            item.setSizeHint(QtCore.QSize(1, height))
  
                    
 class ClickerPlayerApp(QtWidgets.QMainWindow):
