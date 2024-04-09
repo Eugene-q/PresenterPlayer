@@ -157,6 +157,16 @@ background-color: Red;
    </item>
    <item>
     <widget class="QToolButton" name="buttonDuplicate">
+     <property name="styleSheet">
+      <string notr="true">::pressed
+{
+background-color: DodgerBlue;
+}
+::checked
+{
+background-color: DodgerBlue;
+}</string>
+     </property>
      <property name="text">
       <string>...</string>
      </property>

@@ -41,8 +41,10 @@ DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists')
 SONG_LIST_EXTENSION = '.sl'
 SUPPORTED_FILE_TYPES = '.mp3', '.wav', '.m4a', '.mpeg'
 DEFAULT_SONGLIST_NAME = 'New_songlist'
-DEFAULT_SONG_WIDGET_BUTTONS_SIZE = 20
-DEFAULT_SONG_WIDGET_FONT_SIZE = 20
+DEFAULT_SONG_BUTTONS_SIZE = 20
+DEFAULT_SONG_FONT = 'Arial'
+DEFAULT_SONG_FONT_SIZE = 20
+DEFAULT_SONG_BUTTONS_SET = {'play': True, 'duplicate': True, 'repeat': True, 'mute': True, 'delete': True}
 
 OPTIONS_FILE_PATH = os.path.join(BASE_DIR, 'assets/options.json')
 DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, 
@@ -57,8 +59,9 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'rename_delete_old_list': False,
                    'default_music_dir': USER_MUSIC_DIR,
                    'default_save_dir': DEFAULT_SAVE_DIR,
-                   'song_widget_buttons_size': DEFAULT_SONG_WIDGET_BUTTONS_SIZE,
-                   'song_widget_font_size': DEFAULT_SONG_WIDGET_FONT_SIZE,
+                   'song_buttons_size': DEFAULT_SONG_BUTTONS_SIZE,
+                   'song_font_size': DEFAULT_SONG_FONT_SIZE,
+                   'song_buttons_set': DEFAULT_SONG_BUTTONS_SET,
                 }
 
 FOLDER_NOT_FOUND_WARNING = 'Не удалось найти папку с файлами песен!'
@@ -110,20 +113,24 @@ class OptionsDialog(QtWidgets.QDialog):
         self.options_file_path = options_file_path
         self.player = player
         
-        self.load()
-        self.cancel()
-        
         self.sliderSignalsVol.sliderReleased.connect(self.test_signal_vol)
         self.buttonSetDefaultSaveDir.clicked.connect(
                             lambda: self.set_default_dir(self.lineDefaultSaveDir))
         self.buttonSetDefaultMusicDir.clicked.connect(
                             lambda: self.set_default_dir(self.lineDefaultMusicDir))
+                            
         self.test_song_widget = SongWidget(parent=self, id=None, path='', name='Название песни', length=0)
+        self.test_song_widget.buttonDuplicate.setCheckable(True)
+        self.test_song_widget.buttonDelete.setCheckable(True)
+        
         self.layoutSongListWidget.addWidget(self.test_song_widget)
         self.spinBoxFontSize.valueChanged.connect(self.test_song_widget.update_font)
         self.spinBoxButtonsSize.valueChanged.connect(self.test_song_widget.update_buttons_size)
         self.buttonSave.clicked.connect(self.save)
         self.buttonCancel.clicked.connect(self.cancel)
+        
+        self.load()
+        self.cancel()
     
     def load(self):
         if os.path.exists(self.options_file_path):
@@ -142,8 +149,14 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxRenameDeleteOldList.setChecked(options_set.get('rename_delete_old_list'))
         self.lineDefaultMusicDir.setText(options_set.get('default_music_dir'))
         self.lineDefaultSaveDir.setText(options_set.get('default_save_dir'))
-        self.spinBoxButtonsSize.setValue(options_set.get('song_widget_buttons_size'))
-        self.spinBoxFontSize.setValue(options_set.get('song_widget_font_size'))
+        self.spinBoxButtonsSize.setValue(options_set.get('song_buttons_size'))
+        self.spinBoxFontSize.setValue(options_set.get('song_font_size'))
+        song_buttons = options_set.get('song_buttons_set')
+        self.test_song_widget.buttonPlay.setChecked(song_buttons.get('play'))
+        self.test_song_widget.buttonDuplicate.setChecked(song_buttons.get('duplicate'))
+        self.test_song_widget.buttonRepeat.setChecked(song_buttons.get('repeat'))
+        self.test_song_widget.buttonMute.setChecked(song_buttons.get('mute'))
+        self.test_song_widget.buttonDelete.setChecked(song_buttons.get('delete'))
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
@@ -159,16 +172,16 @@ class OptionsDialog(QtWidgets.QDialog):
                        'rename_delete_old_list': self.checkBoxRenameDeleteOldList.isChecked(),
                        'default_music_dir': self.lineDefaultMusicDir.text(),
                        'default_save_dir': self.lineDefaultSaveDir.text(),
-                       'song_widget_buttons_size': self.spinBoxButtonsSize.value(),
-                       'song_widget_font_size': self.spinBoxFontSize.value(),
+                       'song_buttons_size': self.spinBoxButtonsSize.value(),
+                       'song_font_size': self.spinBoxFontSize.value(),
+                       'song_buttons_set': self.get_song_buttons_set()
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
         self.player.show_automations(self.checkBoxShowAutomations.isChecked())
-        for song in self.player.list.list.get_all_songs():
-            song.update_font(self.spinBoxFontSize.value())
-            song.update_buttons_size(self.spinBoxButtonsSize.value())
-        self.player.list.list.update_items(height=self.spinBoxFontSize.value() + 10)
+        self.player.list.list.update_items(font_size=self.spinBoxFontSize.value(),
+                                        buttons_size=self.spinBoxButtonsSize.value(),
+                                        buttons_set=self.get_song_buttons_set().values())
         self.player.setFocus()
         self.hide()
         
@@ -193,6 +206,14 @@ class OptionsDialog(QtWidgets.QDialog):
             
     def save_dir(self):
         return self.lineDefaultSaveDir.text()
+        
+    def get_song_buttons_set(self):
+        return {'play': self.test_song_widget.buttonPlay.isChecked(),
+                'duplicate': self.test_song_widget.buttonDuplicate.isChecked(),
+                'repeat': self.test_song_widget.buttonRepeat.isChecked(),
+                'mute': self.test_song_widget.buttonMute.isChecked(),
+                'delete': self.test_song_widget.buttonDelete.isChecked(),
+                }
     
 
 class SongWidget(QtWidgets.QWidget):
@@ -233,11 +254,72 @@ class SongWidget(QtWidgets.QWidget):
         self.song_list = parent
         
         uic.loadUi(SONG_ITEM_UI_PATH, self)
+        if id != None:
+            self.buttonPlay.clicked.connect(self.play)
+            self.buttonMute.clicked.connect(self.mute)
+            self.buttonMute.setChecked(self.muted)
+            self.buttonRepeat.clicked.connect(self.set_repeat)
+            self.buttonRepeat.setChecked(self.repeat)
+            self.buttonDuplicate.clicked.connect(self.duplicate)
+            self.buttonDelete.clicked.connect(self.delete_from_list)
+        
         self.labelSongName.setText(name)
         self.labelSongName.setToolTip(name)
+        self.labelSongName.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.labelSongName.customContextMenuRequested.connect(self.show_cmenu)
         self.lineNewSongName.returnPressed.connect(self.save_name)
         self.lineNewSongName.hide()
         #print('song created. fade range:', self.fade_range)
+    
+    def show_cmenu(self, p):
+        if (self.song_list.song(self.song_list.playing) == self and
+                            self.song_list.player.state == PLAYING):
+            play_action = 'Пауза'
+        else:
+            play_action = 'Играть'
+        if self.muted:
+            mute_action = 'Включить'
+        else:
+            mute_action = 'Выключить'
+        if self.repeat:
+            repeat_action = 'Не повторять'
+        else:
+            repeat_action = 'Повторять'
+        actions = ((play_action, self.play), 
+                   ('Дублировать', self.duplicate),
+                   (repeat_action, self.set_repeat),
+                   (mute_action, self.mute),
+                   ('Удалить', self.delete_from_list),
+                   )
+        buttons_set = self.song_list.options.get_song_buttons_set().values()
+        menu = QtWidgets.QMenu(self)
+        for button, action in zip(buttons_set, actions):
+            if not button:
+                menu_item, action = action
+                if menu_item == play_action and self.muted:
+                    continue
+                menu.addAction(self.tr(menu_item), action)
+        if not menu.isEmpty():
+            menu.exec_(QtGui.QCursor.pos())
+    
+    def play(self):
+        self.song_list.player.play_pause(song=self)
+        
+    def mute(self):
+        self.muted = not self.muted
+        self.buttonMute.setChecked(self.muted)
+        self.song_list.mute_song(self)
+        
+    def duplicate(self):
+        self.song_list.duplicate_song_widget(self)
+        
+    def delete_from_list(self):
+        self.song_list.delete_song_widget(self)
+        
+    def set_repeat(self):
+        self.repeat = not self.repeat
+        self.buttonRepeat.setChecked(self.repeat)
+        self.song_list.player.set_repeat(self)
         
     def rename(self):
         self.labelSongName.hide()
@@ -281,9 +363,22 @@ class SongWidget(QtWidgets.QWidget):
         self.buttonDuplicate.setFixedSize(value, value)
         self.buttonDuplicate.setIconSize(QtCore.QSize(value, value))
     
-    def update_font(self, value):
-        self.labelSongName.setFont(QtGui.QFont('Arial', value))
-        self.lineNewSongName.setFont(QtGui.QFont('Arial', value))
+    def update_buttons_set(self, buttons_set):
+        buttons = (self.buttonPlay, 
+                   self.buttonDuplicate,
+                   self.buttonRepeat,
+                   self.buttonMute,
+                   self.buttonDelete
+                   )
+        for button, is_on in zip(buttons, buttons_set):
+            if is_on:
+                button.show()
+            else:
+                button.hide()
+    
+    def update_font(self, size=DEFAULT_SONG_FONT_SIZE):
+        self.labelSongName.setFont(QtGui.QFont(DEFAULT_SONG_FONT, size))
+        self.lineNewSongName.setFont(QtGui.QFont(DEFAULT_SONG_FONT, size))
                 
     def set_playback_range(self, playback_range):
         self.start_pos, self.end_pos = playback_range
@@ -361,8 +456,6 @@ class SongListWidget(QtWidgets.QWidget):
                                         muted=info.get('muted'),
                                         waveform=info.get('waveform')
                                         )
-                song_widget.update_font(self.options.spinBoxFontSize.value())
-                song_widget.update_buttons_size(self.options.spinBoxButtonsSize.value())
                 self.add_song_widget(song_widget)
         else:
             if not filenames:           # Добавление песен по кнопке +
@@ -437,6 +530,9 @@ class SongListWidget(QtWidgets.QWidget):
                                          waveform=samples_averaged
                                          )
                 self.add_song_widget(song_widget)
+        self.list.update_items(font_size=self.options.spinBoxFontSize.value(),
+                            buttons_size=self.options.spinBoxButtonsSize.value(),
+                            buttons_set=self.options.get_song_buttons_set().values())
         if filenames:
             self.save(check_filenames=False)
             if list_was_empty:
@@ -446,26 +542,15 @@ class SongListWidget(QtWidgets.QWidget):
     
     def add_song_widget(self, song_widget, row=False):
         item = QtWidgets.QListWidgetItem()
-        item_height = song_widget.labelSongName.fontMetrics().height() + 10 #returns font size + 9
-        item.setSizeHint(QtCore.QSize(1, item_height)) #width based on parent
         if row is False:
             self.list.addItem(item)
         else:
             self.list.insertItem(row, item)
         self.list.setItemWidget(item, song_widget)
-    
-        song_widget.buttonPlay.clicked.connect(self.player.play_pause)
-        song_widget.buttonDuplicate.clicked.connect(self.duplicate_song_widget)
-        song_widget.buttonRepeat.clicked.connect(self.player.set_repeat)
-        song_widget.buttonDelete.clicked.connect(self.delete_song_widget)
-        song_widget.buttonMute.clicked.connect(self.mute_song)
-        song_widget.buttonRepeat.setChecked(song_widget.repeat)
-        song_widget.buttonMute.setChecked(song_widget.muted)
         if song_widget.muted:
             song_widget.buttonPlay.setDisabled(True)
 
-    def duplicate_song_widget(self):
-        parent_song = self.sender().parent()
+    def duplicate_song_widget(self, parent_song):
         song_widget = SongWidget(parent=self,
                                 id=self.get_id(),
                                 path=parent_song.path,
@@ -481,15 +566,20 @@ class SongListWidget(QtWidgets.QWidget):
                                 waveform=parent_song.waveform
                                 )
         parent_index = self.list.get_song_index(parent_song)
-        self.add_song_widget(song_widget, row=parent_index + 1)
+        index = parent_index + 1
+        self.add_song_widget(song_widget, row=index)
         if parent_index < self.playing:
             self.playing += 1
         if parent_index < self.selected:
             self.selected += 1
+        self.list.update_items(index=index, 
+                            font_size=self.options.spinBoxFontSize.value(),
+                            buttons_size=self.options.spinBoxButtonsSize.value(),
+                            buttons_set=self.options.get_song_buttons_set().values())
 
-    def delete_song_widget(self):
+    def delete_song_widget(self, song):
         #delete_index = self.list.currentRow()
-        delete_index = self.list.get_song_index(self.sender().parent())
+        delete_index = self.list.get_song_index(song)
         if delete_index == self.playing and self.player.state is not STOPED:
             self.show_message_box(DELETE_PLAYING_WARNING, cancel_text='')
         elif self.show_message_box('Точно удалить?') == OK:
@@ -846,18 +936,16 @@ class SongListWidget(QtWidgets.QWidget):
         self.renamed_song = self.list.itemWidget(list_item)
         self.renamed_song.rename()
 
-    def mute_song(self):
-        muted_song = self.sender().parent()
-        muted_song.muted = not muted_song.muted
+    def mute_song(self, song):
         self.save(check_filenames=False)
-        if muted_song.muted:
-            muted_song.buttonPlay.setDisabled(True)
-            if muted_song == self.song(self.selected):
+        if song.muted:
+            song.buttonPlay.setDisabled(True)
+            if song == self.song(self.selected):
                 self.player.enable(False, just_playback=True)
-            if muted_song == self.song(self.playing) and self.player.state == PLAYING:
+            if song == self.song(self.playing) and self.player.state == PLAYING:
                 self.player._stop()
         else:
-            muted_song.buttonPlay.setEnabled(True)
+            song.buttonPlay.setEnabled(True)
             self.player.enable(just_playback=True)
         
     def rename_mode(self, name=None):
@@ -870,7 +958,7 @@ class SongListWidget(QtWidgets.QWidget):
 
     def normal_mode(self):
         song = self.song(self.playing)
-        self.player.enable(bool(song and not song.muted))
+        self.player.enable(bool(song and not song.muted), just_playback=True)
         self.buttonListHeader.show()
         self.lineListHeader.hide()
         self.lineListHeader.clearFocus()
@@ -1003,7 +1091,7 @@ class SongList(QtWidgets.QListWidget):
         if raw_drop_index == -1: # песню утянули в самый низ списка
             raw_drop_index = self.count() - 1
             drop_indicator = 2
-        if raw_drop_index > from_index:
+        if raw_drop_index >= from_index:
             drop_index = raw_drop_index + (drop_indicator - 2)
         else:
             drop_index = raw_drop_index + (drop_indicator - 1)
@@ -1064,16 +1152,24 @@ class SongList(QtWidgets.QListWidget):
         return song_info
         
     def set_playback_dir(self, playback_dir):
-        for i in range(self.count()):
-            item = self.item(i)
-            song = self.itemWidget(item)
-            new_song_path = os.path.join(playback_dir, song.name+song.file_type)
-            song.path = new_song_path 
+        for song in self.get_all_songs():
+            song.path = os.path.join(playback_dir, song.name+song.file_type)
             
-    def update_items(self, height=28):
-        for i in range(self.count()):
+    def update_items(self, index=None, font_size=DEFAULT_SONG_FONT_SIZE,
+                                       buttons_size=DEFAULT_SONG_BUTTONS_SIZE,
+                                       buttons_set=DEFAULT_SONG_BUTTONS_SET):
+        item_height = max(font_size, buttons_size) + 10
+        if index is not None:
+            items_set = (index, )
+        else:
+            items_set = range(self.count())
+        for i in items_set:
             item = self.item(i)
-            item.setSizeHint(QtCore.QSize(1, height))
+            item.setSizeHint(QtCore.QSize(1, item_height))
+            song = self.itemWidget(item)
+            song.update_font(size=font_size)
+            song.update_buttons_size(buttons_size)
+            song.update_buttons_set(buttons_set)
  
                    
 class ClickerPlayerApp(QtWidgets.QMainWindow):
@@ -1298,17 +1394,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.load(self.list.song(self.list.playing))  
         print('STOPED...')
         
-    def play_pause(self, event=None):   
+    def play_pause(self, event=None, song=None):   
         self.play_beep()
         print('PLAY|PAUSE')
-        if self.sender():
-            sender = self.sender().parent()
-            if type(sender) == SongWidget:
-                if sender !=  self.list.song(self.list.playing):
-                    self._stop()
-                    self.eject()
-                    self.list.set_row(sender, playing=True)
-                    #self.load(sender)
+        if song and song != self.list.song(self.list.playing):
+            self._stop()
+            self.eject()
+            self.list.set_row(song, playing=True)
+            #self.load(sender)
         elif not self.enabled:
             print('Controls disabled!')
             return
@@ -1582,8 +1675,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             result = f'{minutes :02.0f}:{sec :02.0f}'
         return result
     
-    def set_repeat(self):
-        #selected_song = self.list.song(listSongs.selected)
+    def set_repeat(self, repeated_song=None):
         if self.sender() == self.buttonRepeat:
             self.repeat_mode = (self.repeat_mode + 1) % 4
             self.prev_repeat_mode = self.repeat_mode
@@ -1604,10 +1696,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.list.song(self.list.playing).buttonRepeat.setChecked(False)
                 self.switch_repeat_to(REPEAT_ALL)
         else:
-            repeated_song = self.sender().parent()
-            repeated_song.repeat = not repeated_song.repeat
-            repeated_song.buttonRepeat.setChecked(repeated_song.repeat)
-            if repeated_song ==  self.list.song(self.list.playing):
+            if repeated_song == self.list.song(self.list.playing):
                 if repeated_song.repeat:
                     self.switch_repeat_to(REPEAT_ONE)
                 else:
