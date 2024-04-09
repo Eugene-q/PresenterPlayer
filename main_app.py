@@ -44,7 +44,8 @@ DEFAULT_SONGLIST_NAME = 'New_songlist'
 DEFAULT_SONG_BUTTONS_SIZE = 20
 DEFAULT_SONG_FONT = 'Arial'
 DEFAULT_SONG_FONT_SIZE = 20
-DEFAULT_SONG_BUTTONS_SET = {'play': True, 'duplicate': True, 'repeat': True, 'mute': True, 'delete': True}
+DEFAULT_SONG_BUTTONS_SET = {'play': True, 'duplicate': True,
+                            'repeat': True, 'mute': True, 'delete': True}
 
 OPTIONS_FILE_PATH = os.path.join(BASE_DIR, 'assets/options.json')
 DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR, 
@@ -62,6 +63,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'song_buttons_size': DEFAULT_SONG_BUTTONS_SIZE,
                    'song_font_size': DEFAULT_SONG_FONT_SIZE,
                    'song_buttons_set': DEFAULT_SONG_BUTTONS_SET,
+                   'show_song_number': False,
                 }
 
 FOLDER_NOT_FOUND_WARNING = 'Не удалось найти папку с файлами песен!'
@@ -157,6 +159,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.test_song_widget.buttonRepeat.setChecked(song_buttons.get('repeat'))
         self.test_song_widget.buttonMute.setChecked(song_buttons.get('mute'))
         self.test_song_widget.buttonDelete.setChecked(song_buttons.get('delete'))
+        self.test_song_widget.buttonNumber.setChecked(options_set.get('show_song_number'))
 
     def save(self):
         self.last_playlist_path = self.player.list.save_file_path
@@ -174,7 +177,8 @@ class OptionsDialog(QtWidgets.QDialog):
                        'default_save_dir': self.lineDefaultSaveDir.text(),
                        'song_buttons_size': self.spinBoxButtonsSize.value(),
                        'song_font_size': self.spinBoxFontSize.value(),
-                       'song_buttons_set': self.get_song_buttons_set()
+                       'song_buttons_set': self.get_song_buttons_set(),
+                       'show_song_number': self.test_song_widget.buttonNumber.isChecked()
                    }
         with open(self.options_file_path, 'w', encoding='utf-8') as options_file:
             json.dump(options_set, options_file, indent=4)
@@ -198,11 +202,11 @@ class OptionsDialog(QtWidgets.QDialog):
                                     volume=volume)
                                     
     def set_default_dir(self, dir_line):
-        _dir = QtWidgets.QFileDialog.getExistingDirectory(self,
+        dir_ = QtWidgets.QFileDialog.getExistingDirectory(self,
                                         'Выбрать папку',
                                         dir_line.text())
-        if _dir:
-            dir_line.setText(_dir)
+        if dir_:
+            dir_line.setText(dir_)
             
     def save_dir(self):
         return self.lineDefaultSaveDir.text()
@@ -262,16 +266,19 @@ class SongWidget(QtWidgets.QWidget):
             self.buttonRepeat.setChecked(self.repeat)
             self.buttonDuplicate.clicked.connect(self.duplicate)
             self.buttonDelete.clicked.connect(self.delete_from_list)
+            self.buttonNumber.hide()
+        else:
+            self.labelNumber.hide()
         
         self.labelSongName.setText(name)
         self.labelSongName.setToolTip(name)
         self.labelSongName.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.labelSongName.customContextMenuRequested.connect(self.show_cmenu)
+        self.labelSongName.customContextMenuRequested.connect(self.show_context_menu)
         self.lineNewSongName.returnPressed.connect(self.save_name)
         self.lineNewSongName.hide()
         #print('song created. fade range:', self.fade_range)
     
-    def show_cmenu(self, p):
+    def show_context_menu(self, p):
         if (self.song_list.song(self.song_list.playing) == self and
                             self.song_list.player.state == PLAYING):
             play_action = 'Пауза'
@@ -362,6 +369,7 @@ class SongWidget(QtWidgets.QWidget):
         self.buttonMute.setIconSize(QtCore.QSize(value, value))
         self.buttonDuplicate.setFixedSize(value, value)
         self.buttonDuplicate.setIconSize(QtCore.QSize(value, value))
+        self.buttonNumber.setFixedSize(value, value)
     
     def update_buttons_set(self, buttons_set):
         buttons = (self.buttonPlay, 
@@ -377,9 +385,17 @@ class SongWidget(QtWidgets.QWidget):
                 button.hide()
     
     def update_font(self, size=DEFAULT_SONG_FONT_SIZE):
+        self.labelNumber.setFont(QtGui.QFont(DEFAULT_SONG_FONT, size))
         self.labelSongName.setFont(QtGui.QFont(DEFAULT_SONG_FONT, size))
         self.lineNewSongName.setFont(QtGui.QFont(DEFAULT_SONG_FONT, size))
                 
+    def update_number(self, number):
+        if self.song_list.options.test_song_widget.buttonNumber.isChecked():
+            self.labelNumber.setText(f' {str(number)} - ')
+            self.labelNumber.show()
+        else:
+            self.labelNumber.hide()
+    
     def set_playback_range(self, playback_range):
         self.start_pos, self.end_pos = playback_range
         self.range_limited = (self.start_pos != 0 or
@@ -566,14 +582,12 @@ class SongListWidget(QtWidgets.QWidget):
                                 waveform=parent_song.waveform
                                 )
         parent_index = self.list.get_song_index(parent_song)
-        index = parent_index + 1
-        self.add_song_widget(song_widget, row=index)
+        self.add_song_widget(song_widget, row=parent_index + 1)
         if parent_index < self.playing:
             self.playing += 1
         if parent_index < self.selected:
             self.selected += 1
-        self.list.update_items(index=index, 
-                            font_size=self.options.spinBoxFontSize.value(),
+        self.list.update_items(font_size=self.options.spinBoxFontSize.value(),
                             buttons_size=self.options.spinBoxButtonsSize.value(),
                             buttons_set=self.options.get_song_buttons_set().values())
 
@@ -1111,6 +1125,7 @@ class SongList(QtWidgets.QListWidget):
             super().dropEvent(event)
             self.widget.change_row(drop_index)
             self.widget.save()
+            self.update_items()
         
     def get_all_songs(self, info=False):
         songs = []
@@ -1155,21 +1170,21 @@ class SongList(QtWidgets.QListWidget):
         for song in self.get_all_songs():
             song.path = os.path.join(playback_dir, song.name+song.file_type)
             
-    def update_items(self, index=None, font_size=DEFAULT_SONG_FONT_SIZE,
-                                       buttons_size=DEFAULT_SONG_BUTTONS_SIZE,
-                                       buttons_set=DEFAULT_SONG_BUTTONS_SET):
-        item_height = max(font_size, buttons_size) + 10
-        if index is not None:
-            items_set = (index, )
-        else:
-            items_set = range(self.count())
+    def update_items(self, font_size=None,
+                           buttons_size=None,
+                           buttons_set=None):
+        if font_size and buttons_size and buttons_set:                   
+            item_height = max(font_size, buttons_size) + 10
+        items_set = range(self.count())
         for i in items_set:
             item = self.item(i)
-            item.setSizeHint(QtCore.QSize(1, item_height))
             song = self.itemWidget(item)
-            song.update_font(size=font_size)
-            song.update_buttons_size(buttons_size)
-            song.update_buttons_set(buttons_set)
+            if font_size and buttons_size and buttons_set: 
+                item.setSizeHint(QtCore.QSize(1, item_height))
+                song.update_font(size=font_size)
+                song.update_buttons_size(buttons_size)
+                song.update_buttons_set(buttons_set)
+            song.update_number(i + 1)
  
                    
 class ClickerPlayerApp(QtWidgets.QMainWindow):
