@@ -101,8 +101,8 @@ DEFAULT_SONG_VOLUME = 100
 BASE_WAVEFORM_DISPLAY_WIDTH = 1920
 PLAYBACK_SLIDER_WIDTH_OFFSET = 92
 PLAYBACK_SLIDER_WAVEFORM_OFFSET = 10
-WAVEFORM_AVERAGING_FRAME_WIDTH = 21
-PLAYBACK_SLIDER_HEIGHT = 50#27
+WAVEFORM_AVERAGING_FRAME_WIDTH = 10
+PLAYBACK_SLIDER_HEIGHT = 50
 
 
 class OptionsDialog(QtWidgets.QDialog):
@@ -581,6 +581,7 @@ class SongListWidget(QtWidgets.QWidget):
                 waveform = []
                 frame = deque(maxlen=WAVEFORM_AVERAGING_FRAME_WIDTH)
                 max_sample = max(samples)
+                print('Max sample:', max_sample)
                 for sample in samples:
                     sample = int(self.scale_number(sample, 0, PLAYBACK_SLIDER_HEIGHT, 0, max_sample))
                     frame.append(sample)
@@ -1593,7 +1594,6 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         #print('pos:', pos)
         if pos == None: # отпущен слайдер позиции
             slider_pos = self.sliderPlaybackPos.value()
-            self.allow_automations_update(playback=True, volume=None)
         else:   # нажата кнопка перемотки
             slider_pos = pos
         start_pos, end_pos = self.sliderPlaybackRange.value()
@@ -1603,13 +1603,13 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             slider_pos = end_pos
         self.deck_L.setPosition(slider_pos)
         self.sliderPlaybackPos.setValue(slider_pos)
-        
         current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
         self.labelCurrentPos.setText(current_min_sec)
         if self.high_acuracy:
             self.labelCurrentPosMs.show()
             self.labelCurrentPosMs.setText(current_millisec)
-        print('CHANGE_POS: changed to', slider_pos) 
+        print('CHANGE_POS: changed to', slider_pos)
+        self.allow_automations_update(playback=True, volume=None)
     
     def change_range(self, pbrange=None):
         song = self.list.song(self.list.playing)
@@ -1918,7 +1918,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.list.save()
         event.accept()
     
-    def resizeEvent(self, event):
+    def resizeEvent(self, event=None):
         slider_width = self.width() - PLAYBACK_SLIDER_WIDTH_OFFSET - PLAYBACK_SLIDER_WAVEFORM_OFFSET
         song = self.list.song(self.list.playing)
         if song:
@@ -1939,8 +1939,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         painter.setBrush(QtCore.Qt.lightGray)
         pos = self.sliderPlaybackPos.pos()
         rect = self.sliderPlaybackPos.rect()
-        margin_x = 4
-        margin_y = 5
+        margin_x = 6
+        margin_y = -1
         #print(pos.x(), pos.y(), rect.width(), rect.height())
         polygon = QtGui.QPolygon()
         polygon.append(QtCore.QPoint(pos.x() + margin_x, 
