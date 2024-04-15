@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>753</width>
-    <height>579</height>
+    <width>623</width>
+    <height>434</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,8 +18,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>700</width>
-    <height>508</height>
+    <width>500</width>
+    <height>308</height>
    </size>
   </property>
   <property name="baseSize">
@@ -766,6 +766,12 @@ QSlider::sub-page:horizontal {
        <widget class="QLabel" name="labelEndPos">
         <property name="text">
          <string>00:00</string>
+        </property>
+        <property name="margin">
+         <number>0</number>
+        </property>
+        <property name="indent">
+         <number>5</number>
         </property>
        </widget>
       </item>
