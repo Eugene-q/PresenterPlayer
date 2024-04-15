@@ -1496,6 +1496,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             else:
                 print('temporary PLAY ALL')
                 repeat_mode = PLAY_ALL #зачем?!
+        elif current_song.repeat_mode == PLAY_ONE:
+            pass
         elif repeat_mode == PLAY_ALL or repeat_mode == REPEAT_ALL:
             print('play/repeat all')
             song = self.list.get_song('next')
