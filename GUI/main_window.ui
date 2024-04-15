@@ -720,8 +720,36 @@ background-color: Red;
       </item>
       <item>
        <widget class="QSlider" name="sliderPlaybackPos">
+        <property name="styleSheet">
+         <string notr="true">QSlider::horizontal{
+	height: 30px;
+}
+QSlider::groove:horizontal {
+    border-radius: 1px;       
+    height: 5px;              
+    margin: -1px 0;           
+}
+QSlider::handle:horizontal {
+    background-color: #99ff33;
+    border: 2px solid #c0c0c0;
+    height: 14px;     
+    width: 10px;
+    margin: -5px 0;     
+    border-radius: 7px;
+    padding: -5px 0px;  
+}
+QSlider::add-page:horizontal {
+    background: #663300;
+}
+QSlider::sub-page:horizontal {
+    background: darkgray;
+}</string>
+        </property>
         <property name="maximum">
          <number>180000</number>
+        </property>
+        <property name="value">
+         <number>0</number>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>

@@ -135,7 +135,7 @@
      <x>310</x>
      <y>10</y>
      <width>311</width>
-     <height>41</height>
+     <height>71</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -155,6 +155,19 @@
     </property>
     <property name="text">
      <string>Всегда отображать ручки автоматизации</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBoxShowWaveform">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>291</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Отображать форму волны</string>
     </property>
    </widget>
   </widget>
@@ -407,9 +420,9 @@
    <property name="geometry">
     <rect>
      <x>310</x>
-     <y>60</y>
+     <y>90</y>
      <width>311</width>
-     <height>141</height>
+     <height>111</height>
     </rect>
    </property>
    <property name="frameShape">

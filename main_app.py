@@ -64,6 +64,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'song_font_size': DEFAULT_SONG_FONT_SIZE,
                    'song_buttons_set': DEFAULT_SONG_BUTTONS_SET,
                    'show_song_number': False,
+                   'show_waveform': True,
                 }
 # repeat modes
 PLAY_ALL = 0
@@ -100,9 +101,10 @@ DEFAULT_SONG_VOLUME = 100
 
 BASE_WAVEFORM_DISPLAY_WIDTH = 1920
 PLAYBACK_SLIDER_WIDTH_OFFSET = 92
-PLAYBACK_SLIDER_WAVEFORM_OFFSET = 10
-WAVEFORM_AVERAGING_FRAME_WIDTH = 10
-PLAYBACK_SLIDER_HEIGHT = 50
+PLAYBACK_SLIDER_WAVEFORM_OFFSET = 19#10
+PLAYBACK_SLIDER_HEIGHT = 30
+WAVEFORM_HEIGHT = 70
+WAVEFORM_AVERAGING_FRAME_WIDTH = 15
 
 
 class OptionsDialog(QtWidgets.QDialog):
@@ -143,6 +145,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.beeps_volume = options_set.get('signals_volume')
         self.checkBoxEnableSignals.setChecked(options_set.get('signals_enabled'))
         self.checkBoxShowAutomations.setChecked(options_set.get('always_show_automations'))
+        self.checkBoxShowWaveform.setChecked(options_set.get('show_waveform'))
         self.checkBoxAutoplayFforw.setChecked(options_set.get('autoplay_fforw'))
         self.checkBoxAutoplayRew.setChecked(options_set.get('autoplay_rew'))
         self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
@@ -167,6 +170,7 @@ class OptionsDialog(QtWidgets.QDialog):
                        'signals_volume': self.beeps_volume,
                        'signals_enabled': self.checkBoxEnableSignals.isChecked(),
                        'always_show_automations': self.checkBoxShowAutomations.isChecked(),
+                       'show_waveform': self.checkBoxShowWaveform.isChecked(),
                        'autoplay_fforw': self.checkBoxAutoplayFforw.isChecked(),
                        'autoplay_rew': self.checkBoxAutoplayRew.isChecked(),
                        'clicker_enabled_in_list_mode': self.checkBoxKeyControlsEnable.isChecked(),
@@ -185,6 +189,8 @@ class OptionsDialog(QtWidgets.QDialog):
         self.player.list.list.update_items(font_size=self.spinBoxFontSize.value(),
                                         buttons_size=self.spinBoxButtonsSize.value(),
                                         buttons_set=self.get_song_buttons_set().values())
+        if self.checkBoxShowWaveform.isChecked():
+            self.player.resize_waveform()
         self.player.setFocus()
         self.hide()
         
@@ -583,11 +589,12 @@ class SongListWidget(QtWidgets.QWidget):
                 max_sample = max(samples)
                 print('Max sample:', max_sample)
                 for sample in samples:
-                    sample = int(self.scale_number(sample, 0, PLAYBACK_SLIDER_HEIGHT, 0, max_sample))
+                    sample = int(self.scale_number(sample, 0, WAVEFORM_HEIGHT, 0, max_sample))
                     frame.append(sample)
                     if len(frame) >= WAVEFORM_AVERAGING_FRAME_WIDTH:
                         sample_averaged = int(sum(frame) / WAVEFORM_AVERAGING_FRAME_WIDTH)
                         waveform.append(sample_averaged)
+                print('Max waveform:', max(waveform))
                 self.list.set_waveform(info.get('id'), waveform)
     
     def add_song_widget(self, song_widget, row=False):
@@ -637,6 +644,8 @@ class SongListWidget(QtWidgets.QWidget):
                 if self.is_empty():
                     self.player.enable(False)
                 self.save(check_filenames=False)
+                if self.is_empty():
+                    self.player.eject()
     
     def save_list_name(self):
         delete_old_list = self.options.checkBoxRenameDeleteOldList.isChecked()
@@ -1226,6 +1235,8 @@ class SongList(QtWidgets.QListWidget):
                 song.set_waveform(waveform)
                 if index == self.widget.playing:
                     self.widget.player.waveform = waveform
+                    self.widget.player.resize_waveform()
+                    self.widget.player.update()
 
                    
 class ClickerPlayerApp(QtWidgets.QMainWindow):
@@ -1680,6 +1691,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                     if self.fade_raitos[0]:
                         self.sliderSongVol.setValue(0)
                 print('song', song.name[:20], 'was loaded')
+                self.update()
             else:
                 print('song not loaded because it is muted')
         else:
@@ -1909,16 +1921,8 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.play_next()
         elif event.name == 'tab':
             self.play_pause()
-                
-    def closeEvent(self, event):
-        self.options.save()
-        self.deny_playback_automation()
-        self.deny_volume_automation()
-        self.deck_L.stop()
-        self.list.save()
-        event.accept()
     
-    def resizeEvent(self, event=None):
+    def resize_waveform(self):
         slider_width = self.width() - PLAYBACK_SLIDER_WIDTH_OFFSET - PLAYBACK_SLIDER_WAVEFORM_OFFSET
         song = self.list.song(self.list.playing)
         if song:
@@ -1933,25 +1937,37 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 read_pos += step
             #print('new waveform len:', len(new_waveform))
             self.waveform = new_waveform
+               
+    def closeEvent(self, event):
+        self.options.save()
+        self.deny_playback_automation()
+        self.deny_volume_automation()
+        self.deck_L.stop()
+        self.list.save()
+        event.accept()
+    
+    def resizeEvent(self, event=None):
+        if self.options.checkBoxShowWaveform.isChecked():
+            self.resize_waveform()
         
     def paintEvent(self, event) -> None:  #a0: QtGui.QPaintEvent
-        painter = QtGui.QPainter(self)
-        painter.setBrush(QtCore.Qt.lightGray)
-        pos = self.sliderPlaybackPos.pos()
-        rect = self.sliderPlaybackPos.rect()
-        margin_x = 6
-        margin_y = -1
-        #print(pos.x(), pos.y(), rect.width(), rect.height())
-        polygon = QtGui.QPolygon()
-        polygon.append(QtCore.QPoint(pos.x() + margin_x, 
-                                     pos.y() + int(rect.height() / 2) + margin_y))
-        for i, sample in enumerate(self.waveform):
-            polygon.append(QtCore.QPoint(pos.x() + margin_x + i,
-                                         pos.y() + int(rect.height() / 2) + margin_y - sample))
-        polygon.append(QtCore.QPoint(pos.x() + margin_x + len(self.waveform), 
-                                     pos.y() + int(rect.height() / 2) + margin_y))
-        painter.drawConvexPolygon(polygon) # рисует ту же линию, но с затониорованым низом.
-        #painter.drawPolyline(polygon) # может сделать пункт настроек?
+        if self.options.checkBoxShowWaveform.isChecked():
+            painter = QtGui.QPainter(self)
+            painter.setBrush(QtCore.Qt.lightGray)
+            pos = self.sliderPlaybackPos.pos()
+            rect = self.sliderPlaybackPos.rect()
+            shift_x = 8 # половина ширины ручки слайдера
+            shift_y = -1
+            #print(pos.x(), pos.y(), rect.width(), rect.height())
+            start_x = pos.x() + shift_x
+            start_y = pos.y() + int(rect.height() / 2) + shift_y
+            polygon = QtGui.QPolygon()
+            polygon.append(QtCore.QPoint(start_x, start_y))
+            for i, sample in enumerate(self.waveform):
+                polygon.append(QtCore.QPoint(start_x + i, start_y - sample))
+            polygon.append(QtCore.QPoint(start_x + len(self.waveform), start_y))
+            painter.drawConvexPolygon(polygon) # рисует ту же линию, но с затониорованым низом.
+            #painter.drawPolyline(polygon) # может сделать пункт настроек?
     
     def qlist_info(self):
         print('INFO:')
