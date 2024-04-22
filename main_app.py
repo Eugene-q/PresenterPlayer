@@ -1473,45 +1473,36 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         print('PLAY NEXT')
         self.play_beep()
         self._stop()
-        next_song = self.get_next_song()
-        if (next_song and 
-                (self.sender() == self.deck_L or 
-                self.options.checkBoxAutoplayFforw.isChecked() or
-                next_song.repeat_mode == REPEAT_ONE)):
+        prev_song = self.list.song(self.list.playing)
+        if prev_song.repeat_mode == REPEAT_ONE:
+            self.load(prev_song) #загрузка, чтобы сбросить настройки деки
             self._play()
+        else:
+            next_song = self.get_next_song()
+            if next_song: #условия разделены по логике для кнопки перемотки и конца трека
+                if self.sender() == self.deck_L:
+                    if prev_song.repeat_mode != PLAY_ONE:
+                        self._play()
+                elif self.options.checkBoxAutoplayFforw.isChecked():
+                    self._play()
         self.play_next_switch = False
         print('play next switched to False')
                 
     def get_next_song(self):
-        current_song = self.list.song(self.list.playing)
-        #print('GET NEXT SONG')
         repeat_mode = self.repeat_mode
-        #print('repeat mode:', repeat_mode)
         next_song = None
-        if current_song.repeat_mode == REPEAT_ONE:
-            if self.play_next_switch:
-                print('repeat one')
-                next_song = current_song
-                self.load(next_song)
-            else:
-                print('temporary PLAY ALL')
-                repeat_mode = PLAY_ALL #зачем?!
-        elif current_song.repeat_mode == PLAY_ONE:
-            pass
-        elif repeat_mode == PLAY_ALL or repeat_mode == REPEAT_ALL:
-            print('play/repeat all')
+        song = self.list.get_song('next')
+        while song and song.muted:
             song = self.list.get_song('next')
+        if song:
+            next_song = song
+        elif repeat_mode == REPEAT_ALL:
+            self.list.playing = 0
+            self.list.set_current_row(0)
+            song = self.list.song(0)
             while song and song.muted:
                 song = self.list.get_song('next')
-            if song:
-                next_song = song
-            elif repeat_mode == REPEAT_ALL:
-                self.list.playing = 0
-                self.list.set_current_row(0)
-                song = self.list.song(0)
-                while song and song.muted:
-                    song = self.list.get_song('next')
-                next_song = song
+            next_song = song
         return next_song
     
     def play_previous(self, event=None):
