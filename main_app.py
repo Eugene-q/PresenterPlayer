@@ -1083,9 +1083,9 @@ class SongListWidget(QtWidgets.QWidget):
     def set_current_row(self, row):
         self.list.setCurrentRow(row)
         
-    def get_song(self, direction=''):
+    def get_song(self, direction='', state=STOPED):
         song = None
-        if self.player.state == PLAYING or self.player.state == PAUSED:
+        if state != STOPED:
             song_index = self.playing
         else:
             song_index = self.selected
@@ -1472,13 +1472,14 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
     def play_next(self):
         print('PLAY NEXT')
         self.play_beep()
+        state = self.state
         self._stop()
         prev_song = self.list.song(self.list.playing)
         if prev_song.repeat_mode == REPEAT_ONE:
             self.load(prev_song) #загрузка, чтобы сбросить настройки деки
             self._play()
         else:
-            next_song = self.get_next_song()
+            next_song = self.get_next_song(state)
             if next_song: #условия разделены по логике для кнопки перемотки и конца трека
                 if self.sender() == self.deck_L:
                     if prev_song.repeat_mode != PLAY_ONE:
@@ -1488,12 +1489,12 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.play_next_switch = False
         print('play next switched to False')
                 
-    def get_next_song(self):
+    def get_next_song(self, state):
         repeat_mode = self.repeat_mode
         next_song = None
-        song = self.list.get_song('next')
+        song = self.list.get_song('next', state)
         while song and song.muted:
-            song = self.list.get_song('next')
+            song = self.list.get_song('next', state)
         if song:
             next_song = song
         elif repeat_mode == REPEAT_ALL:
@@ -1501,16 +1502,17 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
             self.list.set_current_row(0)
             song = self.list.song(0)
             while song and song.muted:
-                song = self.list.get_song('next')
+                song = self.list.get_song('next', state)
             next_song = song
         return next_song
     
     def play_previous(self, event=None):
         self.play_beep()
+        state = self.state
         self._stop()
-        previous_song = self.list.get_song('previous')
+        previous_song = self.list.get_song('previous', state)
         while previous_song and previous_song.muted:
-            previous_song = self.list.get_song('previous')
+            previous_song = self.list.get_song('previous', state)
         if previous_song:
             self.eject()   
             self.load(previous_song)
