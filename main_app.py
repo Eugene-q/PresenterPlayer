@@ -79,6 +79,7 @@ WRONG_FILE_NAME_WARNING = '''Вы искали файл\n{}\nно указали
 При добавлении в папку списка файл будет переименован'''
 LIST_FILE_EXISTS_WARNING = 'Список с именем {} уже есть!\nВсё его содержимое будет перезаписано!'
 CLEAR_WARNING = 'Удалить все песни из списка? \nФайлы песен останутся папке списка.'
+DELETE_SONG_WARNING = 'Точно удалить?'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
 SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, но файл с ней ещё остался.
 Удалить файл или оставить в папке списка?'''
@@ -633,16 +634,18 @@ class SongListWidget(QtWidgets.QWidget):
                             buttons_set=self.options.get_song_buttons_set().values())
 
     def delete_song_widget(self, song):
-        #delete_index = self.list.currentRow()
+        print('Delete', song.name)
         delete_index = self.list.get_song_index(song)
         if delete_index == self.playing and self.player.state is not STOPED:
             self.show_message_box(DELETE_PLAYING_WARNING, cancel_text='')
-        elif self.show_message_box('Точно удалить?') == OK:
+        elif self.show_message_box(DELETE_SONG_WARNING) == OK:
                 if delete_index < self.playing:
                     self.playing -= 1
                 self.list.takeItem(delete_index)
-                if self.is_empty():
-                    self.player.enable(False)
+                if delete_index <= self.list.count() - 1:
+                    self.selected = delete_index
+                else:
+                    self.selected = delete_index - 1
                 self.save(check_filenames=False)
                 if self.is_empty():
                     self.player.eject()
@@ -988,6 +991,7 @@ class SongListWidget(QtWidgets.QWidget):
                 self.player.enable(False)
         if self.renamed_song:
             self.renamed_song.normal_mode()
+        print('ROW CHANGED')
             
     def rename_song(self, list_item=None):
         self.renamed_song = self.list.itemWidget(list_item)
@@ -1391,7 +1395,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.setFocus()
     
     def deck_state_changed(self, state):
-        print('DECK state changed to', state, 'deck position:', self.deck_L.position())
+        #print('DECK state changed to', state, 'deck position:', self.deck_L.position())
         song = self.list.song(self.list.playing)
         #print('SONG end_pos:', song.end_pos)
         if state == STOPED:
@@ -1614,7 +1618,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         if self.high_acuracy:
             self.labelCurrentPosMs.show()
             self.labelCurrentPosMs.setText(current_millisec)
-        print('CHANGE_POS: changed to', slider_pos)
+        #print('CHANGE_POS: changed to', slider_pos)
         self.allow_automations_update(playback=True, volume=None)
     
     def change_range(self, pbrange=None):
@@ -1674,7 +1678,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
                 self.deck_L.setPosition(song.start_pos)
                 #print('start pos:', song.start_pos)
                 song.buttonDelete.setEnabled(True)
-                self.enable(just_playback=True)
+                self.enable()#just_playback=True)
                 self.sliderPlaybackPos.setMaximum(song.length)
                 self.sliderPlaybackRange.setMaximum(song.length)
                 self.sliderFadeRange.setMaximum(song.length)
