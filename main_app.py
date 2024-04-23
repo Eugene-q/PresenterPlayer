@@ -524,9 +524,13 @@ class SongListWidget(QtWidgets.QWidget):
             new_songs_info = []
             for song_filename in filenames:
                 song_file_path = os.path.join(self.playback_dir, song_filename)
-                with audioread.audio_open(song_file_path) as audio_file:
+                try:
+                    with audioread.audio_open(song_file_path) as audio_file:
                     #print('Unsupported sound file!')#TODO Сделать окно предупреждения
-                    duration = audio_file.duration    
+                        duration = audio_file.duration 
+                except audioread.exceptions.NoBackendError as e:
+                    self.show_message_box(f'Не удаётся открыть файл! \n{song_filename}', cancel_text='')
+                    continue
                 length = int(duration * 1000)
                 song_name, file_type = os.path.splitext(song_filename)
                 song_widget = SongWidget(parent=self,
