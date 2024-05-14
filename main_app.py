@@ -1723,17 +1723,17 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         return result
     
     def set_repeat(self):
-        self.repeat_mode = (self.repeat_mode + 1) % 3
-        if self.repeat_mode == PLAY_ONE:
+        repeat_mode = (self.repeat_mode + 1) % 3
+        if repeat_mode == PLAY_ONE:
             for song in self.list.list.get_all_songs():
                 song.set_repeat_to(PLAY_ONE)
         elif self.prev_repeat_mode == PLAY_ONE:
             for song in self.list.list.get_all_songs():
                 if song.repeat_mode == PLAY_ONE:
                     song.set_repeat_to(AS_LIST)
-        self.set_repeat_to(self.repeat_mode)
+        self.set_repeat_to(repeat_mode)
         self.prev_repeat_mode = self.repeat_mode
-        self.list.save()
+        #self.list.save()
     
     def set_repeat_to(self, mode):
         print('SET REPEAT TO', mode)
