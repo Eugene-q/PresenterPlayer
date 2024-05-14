@@ -39,7 +39,7 @@ DEFAULT_SIGNAL_PATH = os.path.join(BASE_DIR, 'assets/signal.wav')
 DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/new_songlist_music')
 DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists')
 SONG_LIST_EXTENSION = '.sl'
-SUPPORTED_FILE_TYPES = '.mp3', '.wav', '.m4a', '.mpeg'
+SUPPORTED_FILE_TYPES = '.mp3', 'mp4', '.wav', '.m4a', '.mpeg'
 DEFAULT_SONGLIST_NAME = 'New_songlist'
 DEFAULT_SONG_BUTTONS_SIZE = 20
 DEFAULT_SONG_FONT = 'Arial'
@@ -526,7 +526,6 @@ class SongListWidget(QtWidgets.QWidget):
                 song_file_path = os.path.join(self.playback_dir, song_filename)
                 try:
                     with audioread.audio_open(song_file_path) as audio_file:
-                    #print('Unsupported sound file!')#TODO Сделать окно предупреждения
                         duration = audio_file.duration 
                 except audioread.exceptions.NoBackendError as e:
                     self.show_message_box(f'Не удаётся открыть файл! \n{song_filename}', cancel_text='')
@@ -776,7 +775,6 @@ class SongListWidget(QtWidgets.QWidget):
                                                     self.options.save_dir(), 
                                                     F'SongList File (*{SONG_LIST_EXTENSION})',
                                                     )[0]
-            self.player.setFocus()
         if load_file_path and self.project_is_valid(load_file_path):
             print('file path:', load_file_path)
             self.save_file_path = load_file_path
@@ -795,7 +793,9 @@ class SongListWidget(QtWidgets.QWidget):
                 self.normal_mode()
             else:
                 self.player.enable(False)
+            self.player.set_repeat_to(PLAY_ALL)
             self.save()
+        self.player.setFocus()
             
     def clear(self, silent=False):
         result = False
