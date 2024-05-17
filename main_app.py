@@ -687,7 +687,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.player.enable(False)
     
     def new_list(self):
-        self.save()
+        self.save(check_filenames=False)
         self.clear(silent=True)
         new_list_name = self.get_new_list_path(just_name=True)
         self.new_list_created = True
@@ -725,22 +725,34 @@ class SongListWidget(QtWidgets.QWidget):
             #json.dump(list(reversed(songs_info)), save_file, indent=4)
         if check_filenames:
             song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
-            for filename in self.find_files(file_list=song_filenames, 
+            filenames_not_in_list = self.find_files(file_list=song_filenames, 
                                             search_dir=self.playback_dir,
                                             search_in_list=True,
-                                            not_found=True):
-                message_result = None
-                if not silent:
+                                            not_found=True)
+            silent_mode = 'remove'
+            for filename in filenames_not_in_list:
+                if silent:
+                    if silent_mode == 'remove':
+                        message_result = OK_CHECKED
+                    else:
+                        message_result = MIDDLE_CHECKED
+                else:
                     warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
                     message_result = self.show_message_box(warning, 
                                                     ok_text='Удалить',
-                                                    cancel_text='Оставить', 
+                                                    cancel_text='Оставить',
+                                                    middle_text='Вернуть в список',
                                                     checkbox_text='Применить ко всем')
-                if silent or message_result == OK or message_result == OK_CHECKED:
+                if message_result == OK or message_result == OK_CHECKED:
                     os.remove(os.path.join(self.playback_dir, filename))
                     print('REMOVED:', filename)
                     if message_result == OK_CHECKED:
-                        print('silent = True')
+                        silent_mode = 'remove'
+                        silent = True
+                elif message_result == MIDDLE or message_result == MIDDLE_CHECKED:
+                    self.add_songs(filenames=[filename,])
+                    if message_result == MIDDLE_CHECKED:
+                        silent_mode = 'return'
                         silent = True
                 elif message_result == CANCEL_CHECKED:
                     break                
@@ -768,7 +780,7 @@ class SongListWidget(QtWidgets.QWidget):
     def load(self, load_file_path=''):
         print('LOAD SONGLIST')
         if self.save_file_path:
-            self.save()
+            self.save(check_filenames=False)
         if not load_file_path:
             load_file_path = QtWidgets.QFileDialog.getOpenFileName(self, 
                                                     'Загрузка списка песен', 
@@ -1946,7 +1958,7 @@ class ClickerPlayerApp(QtWidgets.QMainWindow):
         self.deny_playback_automation()
         self.deny_volume_automation()
         self.deck_L.stop()
-        self.list.save()
+        self.list.save(check_filenames=False)
         event.accept()
     
     def resizeEvent(self, event=None):
