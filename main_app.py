@@ -16,20 +16,20 @@ import assets.icons
 from superqt import QRangeSlider
 from song_list import SongWidget, SongListWidget, SongList
 from constants import *
-from constants import set_log
+from constants import set_logger, log_class
 from threading import Thread
 
 logging.basicConfig(level=logging.INFO, filename=INFO_LOG_PATH,filemode="w",
-                    format="%(asctime)s %(levelname)s\t[%(filename)s/%(name)s/%(funcName)s] %(message)s")
-log = set_log(__name__)
+                    format="%(asctime)s %(levelname)s\t%(message)s [/%(name)s/%(funcName)s:%(filename)s]")
+log = set_logger(__name__)
 #logging.error('error!!', exc_info=True)
 
 #sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
 #pyrcc5 -o icons.py icons.qrc
 
-
+@log_class
 class OptionsDialog(QtWidgets.QDialog):
-    log = set_log('OptionsDialog')
+    log = set_logger('OptionsDialog')
     
     def __init__(self, options_file_path, player):
         super().__init__()
@@ -57,7 +57,6 @@ class OptionsDialog(QtWidgets.QDialog):
         
         self.load()
         self.cancel()
-        self.log.info(self.__class__.__name__ + ' initialized')
     
     def load(self):
         if os.path.exists(self.options_file_path):
@@ -149,9 +148,9 @@ class OptionsDialog(QtWidgets.QDialog):
                 'delete': self.test_song_widget.buttonDelete.isChecked(),
                 }
     
-                   
+@log_class                   
 class PlayerApp(QtWidgets.QMainWindow):
-    log = set_log('PlayerApp')
+    log = set_logger('PlayerApp')
     START_VOLUME = 50
     MAX_VOL = 100
     MIN_VOL = 0
@@ -302,6 +301,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.enable(False)
         self.setFocus()
         self.log.info(self.__class__.__name__ + ' initialized')
+        #self.to_log = to_log
     
     def deck_state_changed(self, state):
         #print('DECK state changed to', state, 'deck position:', self.deck_L.position())
@@ -314,7 +314,6 @@ class PlayerApp(QtWidgets.QMainWindow):
       
     def _play(self):
         self.play_beep()
-        self.log.info('PLAY')
         song = self.list.song(self.list.playing)
         self.state = PLAYING
         self.buttonPlay.setChecked(True)
@@ -495,7 +494,7 @@ class PlayerApp(QtWidgets.QMainWindow):
                         fade_volume = new_fade_volume 
                         print('fade out! volume:', fade_volume)
                         self.sliderSongVol.setValue(fade_volume)
-        print('volume automation off')
+        self.log.debug('volume automation off')
     
     def start_volume_update(self):
         if self.volume_update_thread:
@@ -579,7 +578,6 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.change_pos(new_slider_pos)
     
     def load(self, song):
-        self.log.info(f'LOAD song {song.name[:20]}')
         if song:
             self.waveform = song.waveform
             self.resizeEvent(QtGui.QResizeEvent)
@@ -600,12 +598,12 @@ class PlayerApp(QtWidgets.QMainWindow):
                     self.show_automations()
                     if self.fade_raitos[0]:
                         self.sliderSongVol.setValue(0)
-                self.log.info('song was LOADED')
                 self.update()
             else:
-                self.log.info('song not LOADED because it is muted')
+                self.log.debug('song not LOADED because it is muted')
         else:
              self.log.error(f'No song to load! Current song: {self.list.song(self.list.selected)}')
+        return f'{song.name[:20]}'
     
     def eject(self):
         song = self.list.song(self.list.playing)
@@ -719,7 +717,6 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.change_fade_range((fadein_pos, fadeout_pos))
         
     def get_fade_raitos(self):
-        self.log.info('GET_FADE_RAITOS')
         song = self.list.song(self.list.playing)
         fade_in, fade_out = song.fade_range
         fade_in, fade_out = fade_in - song.start_pos, song.end_pos - fade_out
@@ -765,7 +762,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             self._stop()
     
     def enable(self, state=True, just_playback=False):
-        self.log.info(f'Enable: {state}')
+        self.log.debug(f'Enable: {state}')
         #self.log.debug(f'Sender: {self.sender()}')
         self.enabled = state
         self.buttonStop.setEnabled(state)

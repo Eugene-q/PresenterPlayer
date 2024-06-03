@@ -1,10 +1,16 @@
+import inspect
 import logging
 import os
 import sys
 
 LOGGING_LEVEL = logging.INFO
 #LOGGING_LEVEL = logging.DEBUG
-
+NO_LOG_CLASSES = ()
+NO_LOG_METHODS = ('__str__',
+                  'play',
+                  'song', 
+                  'get_song_by_index',
+                  )
 INFO_LOG_PATH = 'logs/info.log'
 ERROR_LOG_PATH = 'logs/error.log'
 if not os.path.exists('logs'):
@@ -17,17 +23,48 @@ error_handler.setLevel(logging.ERROR)
 error_handler.setFormatter(error_formatter)
 ERROR_HANDLER = error_handler
 debug_handler = logging.StreamHandler(stream=sys.stdout)
-debug_formatter = logging.Formatter("{levelname}\t[{name}/{funcName}/{lineno}]: {message}", style='{')
+debug_formatter = logging.Formatter("{levelname}\t{message} [{name}/{funcName}/{lineno}]", style='{')
 debug_handler.setLevel(logging.DEBUG)
 debug_handler.setFormatter(debug_formatter)
 DEBUG_HANDLER = debug_handler
 
-def set_log(class_name):
+indent = ''
+nested = False
+
+def set_logger(class_name):
     logger = logging.getLogger(class_name)
     logger.setLevel(LOGGING_LEVEL)
     logger.addHandler(ERROR_HANDLER)
     logger.addHandler(DEBUG_HANDLER)
     return logger
+    
+def to_log(func):
+    def auto_log(self, *args, **kwargs):
+        global indent, nested
+        func_name = func.__name__
+        nested = False
+        indent += '..'
+        self.log.info(f'{indent}>>{func_name}'.upper())
+        result = func(self, *args, **kwargs)
+        str_result = f'{indent}{result}'[:300]
+        #print(f'nested: {nested}')
+        if nested or result != None:
+            if result != None:
+                self.log.debug(f'{indent}{func_name} result: {str_result}')
+            self.log.info(f'{indent}{func_name}<<'.upper())
+        nested = True
+        indent = indent[2:]
+        return result
+    return auto_log
+
+def log_class(logged_class):
+    if logged_class.__name__ not in NO_LOG_CLASSES:
+        for name, method in inspect.getmembers(logged_class):
+            if inspect.isfunction(method):
+                if name in NO_LOG_METHODS:
+                    continue
+                setattr(logged_class, name, to_log(method))
+    return logged_class
 
 VALID_SYMBOL_CODES = (tuple(chr(s) for s in range(1040, 1104)) + 
                         tuple(chr(s) for s in range(128)) + ('ё', 'Ё'))
