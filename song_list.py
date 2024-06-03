@@ -85,7 +85,6 @@ class SongWidget(QtWidgets.QWidget):
         self.lineNewSongName.hide()
     
     def show_context_menu(self, p):
-        log.error('test error from song')
         if (self.song_list.song(self.song_list.playing) == self and
                             self.song_list.player.state == PLAYING):
             play_action = 'Пауза'
@@ -118,21 +117,21 @@ class SongWidget(QtWidgets.QWidget):
         if not menu.isEmpty():
             menu.exec_(QtGui.QCursor.pos())
     
-    def play(self):
+    def play(self, event=None):
         self.song_list.player.play_pause(song=self)
         
-    def mute(self):
+    def mute(self, event=None):
         self.muted = not self.muted
         self.buttonMute.setChecked(self.muted)
         self.song_list.mute_song(self)
         
-    def duplicate(self):
+    def duplicate(self, event=None):
         self.song_list.duplicate_song_widget(self)
         
-    def delete_from_list(self):
+    def delete_from_list(self, event=None):
         self.song_list.delete_song_widget(self)
         
-    def set_repeat(self):
+    def set_repeat(self, event=None):
         self.repeat_mode = (self.repeat_mode - 1) % 3 + 2
         if self.song_list.player.repeat_mode == PLAY_ONE and self.repeat_mode == AS_LIST:
             self.repeat_mode = (self.repeat_mode - 1) % 3 + 2
@@ -658,7 +657,7 @@ class SongListWidget(QtWidgets.QWidget):
         self.player.setFocus()
         return result
 
-    def delete(self):
+    def delete(self, event=None):
         if self.show_message_box(LIST_DELETE_WARNING) == OK:
             self.player._stop()
             self.player.eject()
@@ -850,7 +849,7 @@ class SongListWidget(QtWidgets.QWidget):
             song.buttonPlay.setEnabled(True)
             self.player.enable(just_playback=True)
         
-    def rename_mode(self, name=None):
+    def rename_mode(self, event=None, name=None):
         self.player.enable_controls(False)
         self.buttonListHeader.hide()
         self.lineListHeader.show()

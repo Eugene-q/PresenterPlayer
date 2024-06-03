@@ -7,9 +7,9 @@ LOGGING_LEVEL = logging.INFO
 #LOGGING_LEVEL = logging.DEBUG
 NO_LOG_CLASSES = ()
 NO_LOG_METHODS = ('__str__',
-                  'play',
                   'song', 
                   'get_song_by_index',
+                  'paintEvent'
                   )
 INFO_LOG_PATH = 'logs/info.log'
 ERROR_LOG_PATH = 'logs/error.log'

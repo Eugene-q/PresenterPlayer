@@ -87,7 +87,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.test_song_widget.buttonDelete.setChecked(song_buttons.get('delete'))
         self.test_song_widget.buttonNumber.setChecked(options_set.get('show_song_number'))
 
-    def save(self):
+    def save(self, event=None):
         self.last_playlist_path = self.player.list.save_file_path
         self.beeps_volume = self.sliderSignalsVol.value()
         options_set = {'last_playlist_path': self.last_playlist_path,
@@ -118,7 +118,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.player.setFocus()
         self.hide()
         
-    def cancel(self):
+    def cancel(self, event=None):
         self.sliderSignalsVol.setValue(int(self.beeps_volume))
         self.checkBoxEnableSignals.setChecked(self.checkBoxEnableSignals.isChecked())
         self.player.setFocus()
@@ -383,7 +383,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             else:
                 self._pause()
             
-    def play_next(self):
+    def play_next(self, event=None):
         self.log.info('PLAY NEXT')
         self.play_beep()
         state = self.state
@@ -554,7 +554,7 @@ class PlayerApp(QtWidgets.QMainWindow):
         fade_out = song.end_pos + min(prev_fadeout_delta, 0)
         self.change_fade_range((fade_in, fade_out))
     
-    def set_range(self):
+    def set_range(self, event=None):
         start_pos, end_pos = self.sliderPlaybackRange.value()
         if self.sender() == self.buttonSetStart:
             start_pos = self.sliderPlaybackPos.value()
@@ -627,7 +627,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             result = f'{minutes :02.0f}:{sec :02.0f}'
         return result
     
-    def set_repeat(self):
+    def set_repeat(self, event=None):
         repeat_mode = (self.repeat_mode + 1) % 3
         if repeat_mode == PLAY_ONE:
             for song in self.list.list.get_all_songs():
@@ -702,7 +702,7 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.sliderFadeRange.setValue(song.fade_range)
         self.fade_raitos = self.get_fade_raitos()
     
-    def set_fade_range(self):
+    def set_fade_range(self, event=None):
         fadein_pos, fadeout_pos = self.sliderFadeRange.value()
         playback_pos = self.sliderPlaybackPos.value()
         if self.sender() == self.buttonSetFadeIn:
@@ -751,7 +751,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.sliderFadeRange.hide()
             self.buttonSetFadeOut.hide()
                
-    def reset_song_settings(self):
+    def reset_song_settings(self, event=None):
         if self.list.show_message_box(RESET_SONG_SETTINGS_WARNING) == OK:
             self.master_vol_change(DEFAULT_MASTER_VOLUME)
             self.song_vol_change(DEFAULT_SONG_VOLUME, move_slider=True)
@@ -818,7 +818,7 @@ class PlayerApp(QtWidgets.QMainWindow):
                 self.options.checkBoxKeyControlsEnable.isChecked() and
                 self.enabled
                 ):
-            print(event.key())
+            self.log.debug(f'{event.key()}')
             action = self.controls.get(event.key())
             if action and self.controls_enabled:
                 action()
