@@ -496,12 +496,13 @@ class SongListWidget(QtWidgets.QWidget):
         else:
             self.player.enable(False)
     
-    def new_list(self):
-        self.save(check_filenames=False)
-        self.clear(silent=True)
-        new_list_name = self.get_new_list_path(just_name=True)
-        self.new_list_created = True
-        self.rename_mode(name=new_list_name)
+    def new_list(self, event=None):
+        if self.show_message_box(NEW_LIST_WARNING) == OK:
+            self.save(check_filenames=False)
+            self.clear(silent=True)
+            new_list_name = self.get_new_list_path(just_name=True)
+            self.new_list_created = True
+            self.rename_mode(name=new_list_name)
     
     def get_new_list_path(self, just_name=False):
         save_name = DEFAULT_SONGLIST_NAME

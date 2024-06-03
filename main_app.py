@@ -811,9 +811,9 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.setFocus()
                     
     def keyPressEvent(self, event):
-        print('KEY PRESS')
-        print('player.enabled:', self.enabled)
-        print('controls enabled:', self.controls_enabled)
+        self.log.debug('KEY PRESS')
+        self.log.debug(f'player.enabled: {self.enabled}')
+        self.log.debug(f'controls enabled: {self.controls_enabled}')
         if (not self.presentation_mode and 
                 self.options.checkBoxKeyControlsEnable.isChecked() and
                 self.enabled
