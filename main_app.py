@@ -276,6 +276,10 @@ class PlayerApp(QtWidgets.QMainWindow):
         
         self.show_automations(False)
         
+        self.progressBuildWaveform.hide()
+        sf = QtWidgets.QStyleFactory()
+        self.progressBuildWaveform.setStyle(sf.create('Fusion'))
+        
         self.list = SongListWidget(self, self.options)
         self.layoutSongList.addWidget(self.list)
         

@@ -361,6 +361,8 @@ class SongListWidget(QtWidgets.QWidget):
     def get_waveforms(self, songs_info):
         for info in songs_info:
             self.log.debug(f'getting waveform. {info.get("name")}')
+            self.player.progressBuildWaveform.setValue(0)
+            self.player.progressBuildWaveform.show()
             try:
                 with audioread.audio_open(info.get('path')) as audio_file:
                     #print('Unsupported sound file!')#TODO Сделать окно предупреждения
@@ -371,9 +373,9 @@ class SongListWidget(QtWidgets.QWidget):
                     #print('total samples:', samplerate * duration)
                     width = (BASE_WAVEFORM_DISPLAY_WIDTH - PLAYBACK_SLIDER_WIDTH_OFFSET - 
                                     PLAYBACK_SLIDER_WAVEFORM_OFFSET)
-                    #print('WIDTH:', width)
+                    self.player.progressBuildWaveform.setMaximum(width)
                     total_samples = int(channels * samplerate * duration)
-                    step = total_samples // width
+                    #step = total_samples // width
                     read_pos = 0
                     samples = []
                     first_buf = True
@@ -382,16 +384,21 @@ class SongListWidget(QtWidgets.QWidget):
                         if first_buf:
                             buf_size = len(buf_int)
                             total_buffers = total_samples // buf_size
-                            buffers_per_step = total_buffers // width
+                            buffers_per_step = total_buffers / width - 1
                             buf_count = buffers_per_step
+                            self.log.debug(f'buf_size:{buf_size} t_samples:{total_samples} t_buff:{total_buffers}')
+                            self.log.debug(f'buf_per_step:{buffers_per_step} width:{width}')
                             first_buf = False
-                        if not buf_count:
+                        if buf_count < 1:
                             QCoreApplication.processEvents()
                             byte_L = buf_int[0]
                             byte_R = buf_int[1]
                             sample = max((abs(byte_L), abs(byte_R)))
                             samples.append(sample)
-                            buf_count = buffers_per_step
+                            buf_count += buffers_per_step
+                            val = self.player.progressBuildWaveform.value()
+                            #self.log.debug(f'progress value {val} of {width}')
+                            self.player.progressBuildWaveform.setValue(val + 1)
                         else:
                             buf_count -= 1
                     self.log.debug(f'samples extracted!')
@@ -409,6 +416,7 @@ class SongListWidget(QtWidgets.QWidget):
                     self.list.set_waveform(info.get('id'), waveform)
             except Exception:
                 self.log.error('Waveform error!', exc_info=True)
+            self.player.progressBuildWaveform.hide()
     
     def add_song_widget(self, song_widget, row=False):
         item = QtWidgets.QListWidgetItem()

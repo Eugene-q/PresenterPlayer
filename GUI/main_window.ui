@@ -777,6 +777,16 @@ QSlider::sub-page:horizontal {
       </item>
      </layout>
     </item>
+    <item>
+     <widget class="QProgressBar" name="progressBuildWaveform">
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="format">
+       <string>Построение формы... %p%</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
  </widget>

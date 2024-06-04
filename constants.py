@@ -9,7 +9,10 @@ NO_LOG_CLASSES = ()
 NO_LOG_METHODS = ('__str__',
                   'song', 
                   'get_song_by_index',
-                  'paintEvent'
+                  'scale_number',
+                  'paintEvent',
+                  'update_playback_slider',
+                  'min_sec_from_ms',
                   )
 INFO_LOG_PATH = 'logs/info.log'
 ERROR_LOG_PATH = 'logs/error.log'
