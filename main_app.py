@@ -19,9 +19,6 @@ from constants import *
 from constants import set_logger, log_class
 from threading import Thread
 
-logging.basicConfig(level=logging.INFO, filename=INFO_LOG_PATH,filemode="w",
-                    format="%(asctime)s %(levelname)s\t%(message)s [/%(name)s/%(funcName)s:%(filename)s]")
-log = set_logger(__name__)
 #logging.error('error!!', exc_info=True)
 
 #sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
@@ -330,7 +327,6 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.log.info(f'PLAYING... {self.list.playing} {song.name}')
            
     def _pause(self):
-        self.log.info('PAUSE')
         song = self.list.song(self.list.playing)
         self.play_beep()
         self.deck_L.pause()
@@ -339,11 +335,9 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.buttonPause.setChecked(True)
         song.buttonPlay.setIcon(self.PAUSED_ICON)
         song.buttonPlay.setChecked(True)
-        self.log.info('PAUSED')
                 
     def _stop(self, event=None):
         self.play_beep()
-        self.log.info('STOP')
         self.deck_L.stop()
         self.state = STOPED
         self.buttonPlay.setChecked(False)
@@ -359,12 +353,10 @@ class PlayerApp(QtWidgets.QMainWindow):
                  song != self.list.song(self.list.selected)):
             self.eject()
             self.list.set_row(self.list.selected, playing=True)
-            self.load(self.list.song(self.list.playing))  
-        self.log.info('STOPED')
+            self.load(self.list.song(self.list.playing))
         
     def play_pause(self, event=None, song=None):   
         self.play_beep()
-        self.log.info('PLAY/PAUSE')
         if song and song != self.list.song(self.list.playing):
             self._stop()
             self.eject()
@@ -388,7 +380,6 @@ class PlayerApp(QtWidgets.QMainWindow):
                 self._pause()
             
     def play_next(self, event=None):
-        self.log.info('PLAY NEXT')
         self.play_beep()
         state = self.state
         self._stop()

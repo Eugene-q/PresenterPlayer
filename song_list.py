@@ -9,7 +9,6 @@ import os
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5 import uic
 from PyQt5.QtCore import QCoreApplication
-from shutil import copyfile, rmtree
 
 
 @log_class
@@ -171,9 +170,8 @@ class SongWidget(QtWidgets.QWidget):
         old_name, filetype = os.path.splitext(filename)
         if old_name != self.name:
             new_path = os.path.join(filedir, self.name + filetype)
-            copyfile(self.path, new_path)
-            os.remove(self.path)
-            self.path = new_path
+            copy_file(self.path, new_path)
+            remove_file(self.path)
     
     def update_buttons_size(self, value):
         self.buttonPlay.setFixedSize(value, value)
@@ -274,8 +272,6 @@ class SongListWidget(QtWidgets.QWidget):
         self.selected = 0               #selected song index
         self.playing = self.selected    #playing song index
         self.set_current_row(0)
-        self.log.info(self.__class__.__name__ + ' initialized')
-        #self.to_log = to_log
         
     def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
         return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
@@ -324,7 +320,12 @@ class SongListWidget(QtWidgets.QWidget):
                                        # TODO Окно предупреждения об удалении недопустимых символов
                     filenames.append(filename)
                     if filename not in current_playback_filenames:
-                        copyfile(filepath, os.path.join(self.playback_dir, filename))
+                        self.log.debug(f'filename {filename} is not in:')
+                        for f_n in current_playback_filenames:
+                            self.log.debug(f'{f_n}')
+                        copy_file(filepath, 
+                                  os.path.join(self.playback_dir, filename),
+                                  self.log)
             new_songs_info = []
             for song_filename in filenames:
                 song_file_path = os.path.join(self.playback_dir, song_filename)
@@ -332,8 +333,8 @@ class SongListWidget(QtWidgets.QWidget):
                     with audioread.audio_open(song_file_path) as audio_file:
                         duration = audio_file.duration 
                 except audioread.exceptions.NoBackendError as e:
-                    self.show_message_box(f'Не удаётся открыть файл! \n{song_filename}', cancel_text='')
-                    self.log.error(f'Не удаётся открыть файл!', exc_info=True)
+                    show_message_box(f'Не удаётся открыть файл! \n{song_filename}', cancel_text='')
+                    self.log.error(f'Не удаётся открыть файл! {song_file_path}', exc_info=True)
                     continue
                 length = int(duration * 1000)
                 song_name, file_type = os.path.splitext(song_filename)
@@ -416,6 +417,7 @@ class SongListWidget(QtWidgets.QWidget):
                     self.list.set_waveform(info.get('id'), waveform)
             except Exception:
                 self.log.error('Waveform error!', exc_info=True)
+                show_message_box(WAVEFORM_ERROR_WARNING, cancel_text='')
             self.player.progressBuildWaveform.hide()
     
     def add_song_widget(self, song_widget, row=False):
@@ -457,8 +459,8 @@ class SongListWidget(QtWidgets.QWidget):
         self.log.info(f'{song.name}')
         delete_index = self.list.get_song_index(song)
         if delete_index == self.playing and self.player.state is not STOPED:
-            self.show_message_box(DELETE_PLAYING_WARNING, cancel_text='')
-        elif self.show_message_box(DELETE_SONG_WARNING) == OK:
+            show_message_box(DELETE_PLAYING_WARNING, cancel_text='')
+        elif show_message_box(DELETE_SONG_WARNING) == OK:
                 if delete_index < self.playing:
                     self.playing -= 1
                 self.list.takeItem(delete_index)
@@ -476,7 +478,7 @@ class SongListWidget(QtWidgets.QWidget):
         new_file_name = new_name + SONG_LIST_EXTENSION
         save_dir = os.path.dirname(self.save_file_path)
         if (not self.find_files((new_file_name,), save_dir) or
-                    self.show_message_box(LIST_FILE_EXISTS_WARNING.format(new_name), 
+                    show_message_box(LIST_FILE_EXISTS_WARNING.format(new_name), 
                                           ok_text='Перезаписать', default_button=CANCEL)
                                           == OK):
             new_save_file_path = os.path.join(save_dir, new_name+SONG_LIST_EXTENSION).lower()
@@ -487,15 +489,15 @@ class SongListWidget(QtWidgets.QWidget):
             if new_save_file_path != old_save_file_path:
                 new_save_file_path = os.path.abspath(new_save_file_path)
                 self.save_as(new_save_file_path)
-                if (os.path.exists(old_save_file_path) and
-                         not self.new_list_created and
-                         self.options.checkBoxRenameDeleteOldList.isChecked()
-                         ):
-                    os.remove(old_save_file_path)
-                    self.player.eject()
-                    rmtree(self.get_playback_dir_path(old_save_file_path))
-                self.buttonListHeader.setText(new_name)
-                self.buttonListHeader.setToolTip(new_name)
+                if (not self.new_list_created and
+                        self.options.checkBoxRenameDeleteOldList.isChecked()
+                        ):
+                    remove_file(old_save_file_path, self.log)
+                    self.player.eject() 
+                    remove_dir(self.get_playback_dir_path(old_save_file_path))
+                else:
+                    self.buttonListHeader.setText(new_name)
+                    self.buttonListHeader.setToolTip(new_name)
         self.normal_mode()
         self.new_list_created = False
         if not self.is_empty():
@@ -504,7 +506,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.player.enable(False)
     
     def new_list(self, event=None):
-        if self.show_message_box(NEW_LIST_WARNING) == OK:
+        if show_message_box(NEW_LIST_WARNING) == OK:
             self.save(check_filenames=False)
             self.clear(silent=True)
             new_list_name = self.get_new_list_path(just_name=True)
@@ -549,7 +551,7 @@ class SongListWidget(QtWidgets.QWidget):
             self.log.error('Ошибка сохранения файла списка!', exc_info=True)
             self.log.error(f'songlist file path: {self.save_file_path}')
             self.log.error(f'not saved files: {short_names}')
-            self.show_message_box(f'СПИСОК НЕ СОХРАНЁН!\n{e}\nподробнее в logs/error.log')
+            show_message_box(SONG_LIST_SAVING_ERROR_WARNING.format(e), cancel_text='')
         if check_filenames:
             self.log.debug('checking filenames...')
             song_filenames = [song_info.get('name')+song_info.get('file_type') for song_info in songs_info]
@@ -566,14 +568,14 @@ class SongListWidget(QtWidgets.QWidget):
                         message_result = MIDDLE_CHECKED
                 else:
                     warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
-                    message_result = self.show_message_box(warning, 
+                    message_result = show_message_box(warning, 
                                                     ok_text='Удалить',
                                                     cancel_text='Оставить',
                                                     middle_text='Вернуть в список',
                                                     checkbox_text='Применить ко всем')
                 if message_result == OK or message_result == OK_CHECKED:
-                    os.remove(os.path.join(self.playback_dir, filename))
-                    self.log.debug(f'REMOVED: {filename}')
+                    if remove_file(os.path.join(self.playback_dir, filename), self.log):
+                        self.log.debug(f'REMOVED: {filename}')   
                     if message_result == OK_CHECKED:
                         silent_mode = 'remove'
                         silent = True
@@ -593,13 +595,13 @@ class SongListWidget(QtWidgets.QWidget):
         if save_file_path and save_file_path != self.save_file_path:
             playback_dir_path = self.get_playback_dir_path(save_file_path)
             if os.path.exists(playback_dir_path):
-                rmtree(playback_dir_path)#TODO Предупреждение, что такой список уже есть.
+                    remove_dir(playback_dir_path)
             os.mkdir(playback_dir_path)
             self.playback_dir = playback_dir_path
             if not blank:
                 for song in self.list.get_all_songs():
                     new_song_path = os.path.join(playback_dir_path, song.name + song.file_type)
-                    copyfile(song.path, new_song_path)
+                    copy_file(song.path, new_song_path, self.log)
                 self.list.set_playback_dir(playback_dir_path)
             self.save_file_path = save_file_path
         self.save()
@@ -622,9 +624,11 @@ class SongListWidget(QtWidgets.QWidget):
                 with open(load_file_path, 'r') as load_file:
                     songs_info = json.load(load_file)
             except FileNotFoundError:
-                self.log.error('Не удалось загрузить список!', exc_info=True)
+                self.log.error('Файл списка не найден!', exc_info=True)
+                show_message_box(LIST_LOADING_ERROR)
             except PermissionError:
                 self.log.error('Доступ к файлу списка запрещён!', exc_info=True)
+                show_message_box(LIST_LOADING_ERROR)
             else:
                 self.save_file_path = load_file_path
                 self.playback_dir = self.get_playback_dir_path(load_file_path)
@@ -650,7 +654,7 @@ class SongListWidget(QtWidgets.QWidget):
         if not self.is_empty():
             message_result = None
             if not silent:
-                message_result = self.show_message_box(CLEAR_WARNING, 
+                message_result = show_message_box(CLEAR_WARNING, 
                                                     ok_text='Очистить',
                                                     checkbox_text='Удалить также и файлы песен')
             if silent or message_result == OK or message_result == OK_CHECKED:
@@ -666,16 +670,15 @@ class SongListWidget(QtWidgets.QWidget):
         return result
 
     def delete(self, event=None):
-        if self.show_message_box(LIST_DELETE_WARNING) == OK:
+        if show_message_box(LIST_DELETE_WARNING) == OK:
             self.player._stop()
             self.player.eject()
             self.clear(silent=True)
-            os.remove(self.save_file_path)
-            rmtree(self.get_playback_dir_path(self.save_file_path))
+            self.remove_file(self.save_file_path, self.log)
+            remove_dir(self.get_playback_dir_path(self.save_file_path))
             self.save_file_path = self.get_new_list_path()
             music_dir_path = self.get_playback_dir_path(self.save_file_path)
-            if os.path.exists(music_dir_path):
-                rmtree(music_dir_path)
+            remove_dir(music_dir_path)
             os.mkdir(music_dir_path)
             self.playback_dir = music_dir_path
             self.save(check_filenames=False)
@@ -689,7 +692,7 @@ class SongListWidget(QtWidgets.QWidget):
         playback_dir = self.get_playback_dir_path(load_file_path)
         if not os.path.exists(playback_dir):
             self.log.debug(f'Playback dir not exist! {playback_dir}')
-            message_result = self.show_message_box(FOLDER_NOT_FOUND_WARNING, 
+            message_result = show_message_box(FOLDER_NOT_FOUND_WARNING, 
                                             ok_text='Указать папку',
                                             cancel_text='Отменить загрузку списка')
             if message_result == OK:
@@ -697,11 +700,20 @@ class SongListWidget(QtWidgets.QWidget):
                                                         'Выбрать папку',
                                                         self.options.save_dir())
                 if new_playback_dir:
-                    os.mkdir(playback_dir)
+                    try:
+                        os.mkdir(playback_dir)
+                    except Exception as e:
+                        self.log.error(f'Ошибка создания папки {playback_dir}', exc_info=True)
+                        return False
+                    copy_ok = True
                     for file_name in self.find_files(file_names_list, new_playback_dir, search_in_list=True):
-                        copyfile(os.path.join(new_playback_dir, file_name), 
-                                 os.path.join(playback_dir, file_name))
-                    return self.project_is_valid(load_file_path)
+                        copy_ok = copy_ok and copy_file(os.path.join(new_playback_dir, file_name), 
+                                                             os.path.join(playback_dir, file_name),
+                                                             self.log)
+                    if copy_ok:
+                        return self.project_is_valid(load_file_path)
+                    else:
+                        return False
         else:
             self.log.debug(f'playback dir is valid')
             files_not_found = self.find_files(file_names_list, playback_dir, not_found=True) 
@@ -712,7 +724,7 @@ class SongListWidget(QtWidgets.QWidget):
                 warning = SONGFILE_NOT_FOUND_WARNING.format(file_name)
                 self.log.info(f'files not found: {files_not_found}')
                 if show_choice:
-                    choice_result = self.show_message_box(warning, 
+                    choice_result = show_message_box(warning, 
                                                     ok_text='Найти файл',
                                                     cancel_text='Удалить песню из списка',
                                                     middle_text='Отменить загрузку списка', 
@@ -728,7 +740,7 @@ class SongListWidget(QtWidgets.QWidget):
                         self.log.debug('file_path recieved... {file_path}')
                         try_playback_dir, try_file_name = os.path.split(file_path)
                         warning = WRONG_FILE_NAME_WARNING.format(file_name, try_file_name)
-                        if try_file_name != file_name and self.show_message_box(warning, 
+                        if try_file_name != file_name and show_message_box(warning, 
                                                     ok_text='Добавить файл',
                                                     cancel_text='Найти другой файл',
                                                     default_button=CANCEL,
@@ -741,17 +753,19 @@ class SongListWidget(QtWidgets.QWidget):
                             show_choice = False
                             for try_file_name in self.find_files(files_not_found, try_playback_dir):
                                 self.log.debug(f'found file: {try_file_name}')
-                                copyfile(os.path.join(try_playback_dir, try_file_name), 
-                                         os.path.join(playback_dir, try_file_name))
-                                files_not_found.remove(try_file_name)
-                                self.log.debug(f'file copied to {os.path.join(playback_dir, try_file_name)}')
+                                if copy_file(os.path.join(try_playback_dir, try_file_name), 
+                                             os.path.join(playback_dir, try_file_name),
+                                             self.log):
+                                    files_not_found.remove(try_file_name)
+                                    self.log.debug(f'file copied to {os.path.join(playback_dir, try_file_name)}')
                             if files_not_found:
                                 self.log.debug('some files are not found')
                                 choice_result = OK
                                 file_path = ''
                         else:
-                            copyfile(file_path, os.path.join(playback_dir, file_name))
-                            files_not_found.remove(file_name)
+                            if copy_file(file_path, os.path.join(playback_dir, file_name),
+                                         self.log):
+                                files_not_found.remove(file_name)
                     else:
                         show_choice = True
                 elif choice_result == CANCEL or choice_result == CANCEL_CHECKED:
@@ -872,52 +886,27 @@ class SongListWidget(QtWidgets.QWidget):
         self.lineListHeader.hide()
         self.lineListHeader.clearFocus()
         self.player.setFocus()
-       
-    def show_message_box(self, message, 
-                               checkbox_text='', 
-                               ok_text='OK', 
-                               cancel_text='Отмена',
-                               middle_text='',
-                               default_button=OK):
-        message_box = QtWidgets.QMessageBox()
-        message_box.setText(message)
-        ok_button = message_box.addButton(ok_text,QtWidgets.QMessageBox.AcceptRole)
-        middle_button = message_box.addButton(middle_text, QtWidgets.QMessageBox.RejectRole)
-        cancel_button = message_box.addButton(cancel_text, QtWidgets.QMessageBox.RejectRole)
-        middle_button.hide()
-        cancel_button.hide()
-        buttons = (ok_button, middle_button, cancel_button)
-        message_box.setDefaultButton(buttons[default_button])
-        checkbox = None
-        if middle_text:
-            middle_button.show()
-        if cancel_text:
-            cancel_button.show()
-        if checkbox_text:
-            checkbox = QtWidgets.QCheckBox(checkbox_text, message_box)
-            message_box.setCheckBox(checkbox)
-        result = message_box.exec()
-        if checkbox and checkbox.isChecked():
-            result += 3
-        self.log.debug(f'MESSAGE BOX RESULT: {result}')
-        return result
         
     def get_playback_dir_filenames(self, playback_dir=''):
         playback_dir = playback_dir or self.playback_dir
+        self.log.debug(f'playback_dir: {playback_dir}')
         return [f_name.strip() for f_name in os.listdir(playback_dir
                                     ) if not f_name.startswith('.')]
     
     def improve_filename(self, filename):
-        self.log.debug(f'{filename}')
+        self.log.debug(f'source filename: {filename}')
+        improved = False
         if not filename.isascii():
             valid_filename_symbols = []
             for s in filename:
                 if s not in VALID_SYMBOL_CODES:
                     s = '#'
+                    improved = True
                 valid_filename_symbols.append(s)
-            result = ''.join(valid_filename_symbols)
-            self.log.warning(f'filename has changed to {result}')
-            return result
+            if improved:
+                result = ''.join(valid_filename_symbols)
+                self.log.warning(f'filename has changed to {result}')
+                return result
 
     def get_playback_dir_path(self, list_file_path):
         dirname, filename = os.path.split(list_file_path)
@@ -966,7 +955,7 @@ class SongListWidget(QtWidgets.QWidget):
         
     def song(self, index):
         return self.list.get_song_by_index(index)
-        
+
 
 @log_class    
 class SongList(QtWidgets.QListWidget):
@@ -994,7 +983,7 @@ class SongList(QtWidgets.QListWidget):
         event.acceptProposedAction()
         
     def dropEvent(self, event):
-        print("List: DROP!!")
+        self.log.debug("List: DROP!!")
         raw_drop_index = self.indexAt(event.pos()).row()
         drop_indicator = self.dropIndicatorPosition()
         from_index = self.currentRow()
@@ -1014,10 +1003,10 @@ class SongList(QtWidgets.QListWidget):
                 self.widget.playing -= 1
             elif from_index > playing and drop_index <= playing:
                 self.widget.playing += 1
-            print('drop indicator position:', self.dropIndicatorPosition())
-            print('from index', from_index)
-            print('drop index', drop_index)
-            print('playing index =', self.widget.playing)
+            self.log.debug(f'drop indicator position: {self.dropIndicatorPosition()}')
+            self.log.debug(f'from index {from_index}')
+            self.log.debug(f'drop index {drop_index}')
+            self.log.debug(f'playing index = {self.widget.playing}')
             super().dropEvent(event)
             self.widget.change_row(drop_index)
             self.widget.save()

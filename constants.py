@@ -2,9 +2,11 @@ import inspect
 import logging
 import os
 import sys
+from PyQt5 import QtWidgets
+from shutil import copyfile, rmtree
 
 LOGGING_LEVEL = logging.INFO
-#LOGGING_LEVEL = logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG
 NO_LOG_CLASSES = ()
 NO_LOG_METHODS = ('__str__',
                   'song', 
@@ -33,42 +35,7 @@ DEBUG_HANDLER = debug_handler
 
 indent = ''
 nested = False
-
-def set_logger(class_name):
-    logger = logging.getLogger(class_name)
-    logger.setLevel(LOGGING_LEVEL)
-    logger.addHandler(ERROR_HANDLER)
-    logger.addHandler(DEBUG_HANDLER)
-    return logger
-    
-def to_log(func):
-    def auto_log(self, *args, **kwargs):
-        global indent, nested
-        func_name = func.__name__
-        nested = False
-        indent += '..'
-        self.log.info(f'{indent}>>{func_name}'.upper())
-        result = func(self, *args, **kwargs)
-        str_result = f'{indent}{result}'[:300]
-        #print(f'nested: {nested}')
-        if nested or result != None:
-            if result != None:
-                self.log.debug(f'{indent}{func_name} result: {str_result}')
-            self.log.info(f'{indent}{func_name}<<'.upper())
-        nested = True
-        indent = indent[2:]
-        return result
-    return auto_log
-
-def log_class(logged_class):
-    if logged_class.__name__ not in NO_LOG_CLASSES:
-        for name, method in inspect.getmembers(logged_class):
-            if inspect.isfunction(method):
-                if name in NO_LOG_METHODS:
-                    continue
-                setattr(logged_class, name, to_log(method))
-    return logged_class
-
+            
 VALID_SYMBOL_CODES = (tuple(chr(s) for s in range(1040, 1104)) + 
                         tuple(chr(s) for s in range(128)) + ('ё', 'Ё'))
                         
@@ -132,6 +99,12 @@ SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, н
 Удалить файл или оставить в папке списка?'''
 LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
 RESET_SONG_SETTINGS_WARNING = 'Настройки громкости и позиции будут сброшены!'
+WAVEFORM_ERROR_WARNING = 'Ошибка при построении формы волны!\nПодробнее в logs/error.log'
+SONG_LIST_SAVING_ERROR_WARNING = 'СПИСОК НЕ СОХРАНЁН!\n{}\nподробнее в logs/error.log'
+FILE_ACCESS_ERROR = 'ОШИБКА ДОСТУПА К ФАЙЛУ! {filename}\n{error}'
+FILE_COPYING_ERROR = 'ФАЙЛ {filename} НЕ СКОПИРОВАН!\n{error}'
+LIST_LOADING_ERROR = 'ОШИБКА ЗАГРУЗКИ СПИСКА!\nПодробнее в logs/error.log'
+
 
 STOPED = 0
 PLAYING = 1
@@ -153,3 +126,108 @@ PLAYBACK_SLIDER_WAVEFORM_OFFSET = 19#10
 PLAYBACK_SLIDER_HEIGHT = 30
 WAVEFORM_HEIGHT = 70
 WAVEFORM_AVERAGING_FRAME_WIDTH = 15
+
+def set_logger(class_name):
+    logger = logging.getLogger(class_name)
+    logger.setLevel(LOGGING_LEVEL)
+    logger.addHandler(ERROR_HANDLER)
+    logger.addHandler(DEBUG_HANDLER)
+    return logger
+    
+def to_log(func):
+    def auto_log(self, *args, **kwargs):
+        global indent, nested
+        func_name = func.__name__
+        nested = False
+        indent += '..'
+        self.log.info(f'{indent}>>{func_name}'.upper())
+        result = func(self, *args, **kwargs)
+        str_result = f'{indent}{result}'[:300]
+        #print(f'nested: {nested}')
+        if nested or result != None:
+            if result != None:
+                self.log.debug(f'{indent}{func_name} result: {str_result}')
+            self.log.info(f'{indent}{func_name}<<'.upper())
+        nested = True
+        indent = indent[2:]
+        return result
+    return auto_log
+
+def log_class(logged_class):
+    if logged_class.__name__ not in NO_LOG_CLASSES:
+        for name, method in inspect.getmembers(logged_class):
+            if inspect.isfunction(method):
+                if name in NO_LOG_METHODS:
+                    continue
+                setattr(logged_class, name, to_log(method))
+    return logged_class
+    
+logging.basicConfig(level=logging.INFO, filename=INFO_LOG_PATH,filemode="w",
+                    format="%(asctime)s %(levelname)s\t%(message)s [/%(name)s/%(funcName)s:%(filename)s]")
+log = set_logger(__name__)
+
+def show_message_box(message, 
+                     checkbox_text='', 
+                     ok_text='OK', 
+                     cancel_text='Отмена',
+                     middle_text='',
+                     default_button=OK,
+                     log=log):
+    message_box = QtWidgets.QMessageBox()
+    message_box.setText(message)
+    ok_button = message_box.addButton(ok_text,QtWidgets.QMessageBox.AcceptRole)
+    middle_button = message_box.addButton(middle_text, QtWidgets.QMessageBox.RejectRole)
+    cancel_button = message_box.addButton(cancel_text, QtWidgets.QMessageBox.RejectRole)
+    middle_button.hide()
+    cancel_button.hide()
+    buttons = (ok_button, middle_button, cancel_button)
+    message_box.setDefaultButton(buttons[default_button])
+    checkbox = None
+    if middle_text:
+        middle_button.show()
+    if cancel_text:
+        cancel_button.show()
+    if checkbox_text:
+        checkbox = QtWidgets.QCheckBox(checkbox_text, message_box)
+        message_box.setCheckBox(checkbox)
+    result = message_box.exec()
+    if checkbox and checkbox.isChecked():
+        result += 3
+    log.debug(f'MESSAGE BOX RESULT: {result}')
+    return result
+
+def remove_file(filepath, logger=log):
+    result = False
+    try:
+        os.remove(filepath)
+        result = True
+    except Exception as e:
+        logger.error(f'Ошибка удаления файла!', exc_info=True)
+        show_message_box(FILE_ACCESS_ERROR.format(filename=filepath, 
+                                                       error=e), 
+                              cancel_text=''
+                              ) 
+    finally:
+        return result   
+
+def copy_file(from_dir, to_dir, logger=log):
+    result = False
+    filename = os.path.basename(from_dir)
+    try:
+        copyfile(from_dir, to_dir)
+        result = True
+    except Exception as e:
+        logger.error(f'Ошибка копирования файла {filename} из {from_dir} в {to_dir}', exc_info=True)
+        show_message_box(FILE_COPYING_ERROR.format(filename=filename, 
+                                                        error=e), 
+                              cancel_text=''
+                              ) 
+    finally:
+        return result
+
+def remove_dir(dirpath, logger=log):
+    try:
+        rmtree(dirpath)
+    except Exception as e:
+        logger.error('Ошибка удаления папки с файлами!', exc_info=True)
+        show_message_box('Ошибка удаления папки с файлами!', cancel_text='')
