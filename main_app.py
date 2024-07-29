@@ -356,7 +356,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.load(self.list.song(self.list.playing))
         
     def play_pause(self, event=None, song=None):   
-        self.play_beep()
+        #self.play_beep()
         if song and song != self.list.song(self.list.playing):
             self._stop()
             self.eject()
@@ -748,7 +748,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.buttonSetFadeOut.hide()
                
     def reset_song_settings(self, event=None):
-        if self.list.show_message_box(RESET_SONG_SETTINGS_WARNING) == OK:
+        if show_message_box(RESET_SONG_SETTINGS_WARNING) == OK:
             self.master_vol_change(DEFAULT_MASTER_VOLUME)
             self.song_vol_change(DEFAULT_SONG_VOLUME, move_slider=True)
             self.change_range((0,  self.list.song(self.list.playing).length))
