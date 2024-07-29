@@ -596,9 +596,9 @@ class PlayerApp(QtWidgets.QMainWindow):
                 self.update()
             else:
                 self.log.debug('song not LOADED because it is muted')
+            return f'{song.name[:20]}'
         else:
              self.log.error(f'No song to load! Current song: {self.list.song(self.list.selected)}')
-        return f'{song.name[:20]}'
     
     def eject(self):
         song = self.list.song(self.list.playing)
@@ -606,6 +606,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             song.normal_mode()
             song.buttonPlay.setIcon(self.PLAY_ICON)
             song.buttonPlay.setChecked(False)
+            self.log.debug(f'{song.name} ejected')
         self.show_automations(False)
         self.enable(False, just_playback=True)
         self.waveform = []

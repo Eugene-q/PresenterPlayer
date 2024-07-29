@@ -172,6 +172,7 @@ class SongWidget(QtWidgets.QWidget):
             new_path = os.path.join(filedir, self.name + filetype)
             copy_file(self.path, new_path)
             remove_file(self.path)
+            self.path = new_path
     
     def update_buttons_size(self, value):
         self.buttonPlay.setFixedSize(value, value)
