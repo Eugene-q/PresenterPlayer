@@ -384,7 +384,7 @@ class PlayerApp(QtWidgets.QMainWindow):
         state = self.state
         self._stop()
         prev_song = self.list.song(self.list.playing)
-        if prev_song.repeat_mode == REPEAT_ONE:
+        if prev_song.repeat_mode == REPEAT_ONE and self.sender() == self.deck_L:
             self.load(prev_song) #загрузка, чтобы сбросить настройки деки
             self._play()
         else:
