@@ -37,12 +37,18 @@ class OptionsDialog(QtWidgets.QDialog):
         self.player = player
         
         self.sliderSignalsVol.sliderReleased.connect(self.test_signal_vol)
+        self.checkBoxHardLinkFileName.stateChanged.connect(self.hard_link_enable)
         self.buttonSetDefaultSaveDir.clicked.connect(
                             lambda: self.set_default_dir(self.lineDefaultSaveDir))
         self.buttonSetDefaultMusicDir.clicked.connect(
                             lambda: self.set_default_dir(self.lineDefaultMusicDir))
                             
-        self.test_song_widget = SongWidget(parent=self, id=None, path='', name='Название песни', length=0)
+        self.test_song_widget = SongWidget(parent=self, 
+                                           id=None,
+                                           name='Название песни', 
+                                           file_name='', 
+                                           length=0,
+                                           )
         self.test_song_widget.buttonDuplicate.setCheckable(True)
         self.test_song_widget.buttonDelete.setCheckable(True)
         
@@ -72,6 +78,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.checkBoxKeyControlsEnable.setChecked(options_set.get('clicker_enabled_in_list_mode'))
         self.spinBoxChangePosStep.setValue(options_set.get('change_pos_step'))
         self.checkBoxRenameDeleteOldList.setChecked(options_set.get('rename_delete_old_list'))
+        self.checkBoxHardLinkFileName.setChecked(options_set.get('hard_link_filename'))
         self.lineDefaultMusicDir.setText(options_set.get('default_music_dir'))
         self.lineDefaultSaveDir.setText(options_set.get('default_save_dir'))
         self.spinBoxButtonsSize.setValue(options_set.get('song_buttons_size'))
@@ -97,6 +104,7 @@ class OptionsDialog(QtWidgets.QDialog):
                        'clicker_enabled_in_list_mode': self.checkBoxKeyControlsEnable.isChecked(),
                        'change_pos_step': self.spinBoxChangePosStep.value(),
                        'rename_delete_old_list': self.checkBoxRenameDeleteOldList.isChecked(),
+                       'hard_link_filename': self.checkBoxHardLinkFileName.isChecked(),
                        'default_music_dir': self.lineDefaultMusicDir.text(),
                        'default_save_dir': self.lineDefaultSaveDir.text(),
                        'song_buttons_size': self.spinBoxButtonsSize.value(),
@@ -112,6 +120,8 @@ class OptionsDialog(QtWidgets.QDialog):
                                         buttons_set=self.get_song_buttons_set().values())
         if self.checkBoxShowWaveform.isChecked():
             self.player.resize_waveform()
+        if self.checkBoxHardLinkFileName.isChecked():
+            self.player.list.set_unique_names()
         self.player.setFocus()
         self.hide()
         
@@ -126,6 +136,16 @@ class OptionsDialog(QtWidgets.QDialog):
             volume = self.sliderSignalsVol.value()
             self.player.play_beep(enabled=True, 
                                     volume=volume)
+    
+    def hard_link_enable(self, enabled):
+        self.log.debug(f'recieved: {enabled}')
+        if enabled and self.isVisible():
+            show_message_box(HARD_LINK_ENABLE_WARNING, 
+                                #ok_text='Включить',
+                                cancel_text='',
+                                #default_button=CANCEL,
+                                )
+               #self.checkBoxHardLinkFileName.setChecked(False)
                                     
     def set_default_dir(self, dir_line):
         dir_ = QtWidgets.QFileDialog.getExistingDirectory(self,
@@ -576,8 +596,9 @@ class PlayerApp(QtWidgets.QMainWindow):
         if song:
             self.waveform = song.waveform
             self.resizeEvent(QtGui.QResizeEvent)
+            song_path = os.path.join(self.list.playback_dir, song.file_name)
             if not song.muted:
-                content = QMediaContent(QUrl.fromLocalFile(song.path))
+                content = QMediaContent(QUrl.fromLocalFile(song_path))
                 self.deck_L.setMedia(content)
                 self.deck_L.setPosition(song.start_pos)
                 #print('start pos:', song.start_pos)

@@ -6,7 +6,7 @@ from PyQt5 import QtWidgets
 from shutil import copyfile, rmtree
 
 LOGGING_LEVEL = logging.INFO
-LOGGING_LEVEL = logging.DEBUG
+#LOGGING_LEVEL = logging.DEBUG
 NO_LOG_CLASSES = ()
 NO_LOG_METHODS = ('__str__',
                   'song', 
@@ -71,6 +71,7 @@ DEFAULT_OPTIONS = {'last_playlist_path': os.path.join(DEFAULT_SAVE_DIR,
                    'clicker_enabled_in_list_mode': True,
                    'change_pos_step': 250,
                    'rename_delete_old_list': False,
+                   'hard_link_filename': False,
                    'default_music_dir': USER_MUSIC_DIR,
                    'default_save_dir': DEFAULT_SAVE_DIR,
                    'song_buttons_size': DEFAULT_SONG_BUTTONS_SIZE,
@@ -92,6 +93,7 @@ WRONG_FILE_NAME_WARNING = '''Вы искали файл\n{}\nно указали
 При добавлении в папку списка файл будет переименован'''
 NEW_LIST_WARNING = 'Создать новый пустой список?\nТекущий список будет закрыт.'
 LIST_FILE_EXISTS_WARNING = 'Список с именем {} уже есть!\nВсё его содержимое будет перезаписано!'
+SONG_NAME_EXISTS_WARNING = 'Песня с таким именем уже есть в списке!'
 CLEAR_WARNING = 'Удалить все песни из списка? \nФайлы песен останутся папке списка.'
 DELETE_SONG_WARNING = 'Точно удалить?'
 DELETE_PLAYING_WARNING = 'Нельзя удалить то, что сейчас играет!'
@@ -99,6 +101,9 @@ SOURCE_DELETE_WARNING = '''Песни {} больше нет в списке, н
 Удалить файл или оставить в папке списка?'''
 LIST_DELETE_WARNING = 'Полностью удалить список и связанные с ним файлы?'
 RESET_SONG_SETTINGS_WARNING = 'Настройки громкости и позиции будут сброшены!'
+HARD_LINK_ENABLE_WARNING = '''Если в списке есть копии песен с разными именами, при сохранении настроек для каждой из них будет создан отдельный файл\n
+Это потребует больше места на диске'''
+
 WAVEFORM_ERROR_WARNING = 'Ошибка при построении формы волны!\nПодробнее в logs/error.log'
 SONG_LIST_SAVING_ERROR_WARNING = 'СПИСОК НЕ СОХРАНЁН!\n{}\nподробнее в logs/error.log'
 FILE_ACCESS_ERROR = 'ОШИБКА ДОСТУПА К ФАЙЛУ! {filename}\n{error}'
@@ -210,12 +215,24 @@ def remove_file(filepath, logger=log):
     finally:
         return result   
 
-def copy_file(from_dir, to_dir, logger=log):
+def copy_file(from_dir, to_dir, logger=log, overwrite=False):
     result = False
     filename = os.path.basename(from_dir)
     try:
         copyfile(from_dir, to_dir)
         result = True
+    except SameFileError as e:
+        if overwrite:
+            remove_file(to_dir, logger)
+            copyfile(from_dir, to_dir)
+            result = True
+            logger.info(f'Файл {to_dir} уже существует и был перезаписан')
+        else:
+            logger.error(f'Файл {filename} из {from_dir} уже существует в {to_dir}', exc_info=True)
+            show_message_box(FILE_COPYING_ERROR.format(filename=filename, 
+                                                            error=e), 
+                                  cancel_text=''
+                                  )
     except Exception as e:
         logger.error(f'Ошибка копирования файла {filename} из {from_dir} в {to_dir}', exc_info=True)
         show_message_box(FILE_COPYING_ERROR.format(filename=filename, 

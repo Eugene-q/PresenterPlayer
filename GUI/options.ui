@@ -12,8 +12,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>635</width>
-    <height>364</height>
+    <width>637</width>
+    <height>394</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -104,7 +104,7 @@
    <property name="geometry">
     <rect>
      <x>420</x>
-     <y>320</y>
+     <y>350</y>
      <width>203</width>
      <height>32</height>
     </rect>
@@ -302,7 +302,7 @@
      <x>10</x>
      <y>210</y>
      <width>331</width>
-     <height>141</height>
+     <height>171</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -315,7 +315,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>90</y>
+      <y>120</y>
       <width>141</width>
       <height>21</height>
      </rect>
@@ -328,7 +328,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>110</y>
+      <y>140</y>
       <width>241</width>
       <height>21</height>
      </rect>
@@ -341,7 +341,7 @@
     <property name="geometry">
      <rect>
       <x>250</x>
-      <y>107</y>
+      <y>137</y>
       <width>81</width>
       <height>32</height>
      </rect>
@@ -380,7 +380,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>40</y>
+      <y>73</y>
       <width>201</width>
       <height>21</height>
      </rect>
@@ -393,7 +393,7 @@
     <property name="geometry">
      <rect>
       <x>250</x>
-      <y>57</y>
+      <y>90</y>
       <width>81</width>
       <height>32</height>
      </rect>
@@ -406,13 +406,32 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>60</y>
+      <y>93</y>
       <width>241</width>
       <height>21</height>
      </rect>
     </property>
     <property name="readOnly">
      <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBoxHardLinkFileName">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>40</y>
+      <width>311</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Жёсткая связь имени песни и файла. При дублировании создаётся дубликат файла. &lt;/p&gt;&lt;p&gt;Если выключено - файлы вообще не переименовываются, меняются только имена в списке.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+    <property name="toolTipDuration">
+     <number>0</number>
+    </property>
+    <property name="text">
+     <string>Жёсткая связь имени песни и файла</string>
     </property>
    </widget>
   </widget>
