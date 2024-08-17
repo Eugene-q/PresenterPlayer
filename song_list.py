@@ -70,12 +70,12 @@ class SongWidget(QtWidgets.QWidget):
             self.buttonDuplicate.clicked.connect(self.duplicate)
             self.buttonDelete.clicked.connect(self.delete_from_list)
             self.buttonNumber.hide()
+            self.labelSongName.setToolTip(f'{name}\n{os.path.join(self.song_list.playback_dir, self.file_name)}')
             self.set_repeat_to(self.repeat_mode)
         else:
             self.labelNumber.hide()
         
         self.labelSongName.setText(name)
-        self.labelSongName.setToolTip(name)
         self.labelSongName.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.labelSongName.customContextMenuRequested.connect(self.show_context_menu)
         self.lineNewSongName.returnPressed.connect(self.save_name)
@@ -163,6 +163,7 @@ class SongWidget(QtWidgets.QWidget):
                 self.update_filename()
         self.name = new_name
         self.labelSongName.setText(self.name)
+        self.labelSongName.setToolTip(f'{self.name}\n{os.path.join(self.song_list.playback_dir, self.file_name)}')
         self.song_list.save(check_filenames=False)
         self.normal_mode()
         
@@ -263,7 +264,6 @@ class SongListWidget(QtWidgets.QWidget):
         self.lineListHeader.hide()
         self.lineListHeader.returnPressed.connect(self.save_list_name)
         self.buttonListHeader.clicked.connect(self.rename_mode)
-        self.buttonListHeader.setToolTip(self.buttonListHeader.text())
         self.buttonListHeader.setStyleSheet("text-align:left;")
         self.buttonAddTrack.clicked.connect(self.add_songs)
         self.buttonNewList.clicked.connect(self.new_list)
@@ -536,9 +536,6 @@ class SongListWidget(QtWidgets.QWidget):
                     remove_file(old_save_file_path, self.log)
                     self.player.eject() 
                     remove_dir(self.get_playback_dir_path(old_save_file_path))
-                else:
-                    self.buttonListHeader.setText(new_name)
-                    self.buttonListHeader.setToolTip(new_name)
         self.normal_mode()
         self.new_list_created = False
         if not self.is_empty():
@@ -576,7 +573,8 @@ class SongListWidget(QtWidgets.QWidget):
         self.log.info(f'{self.save_file_path}')
         list_name = os.path.basename(self.save_file_path).partition('.')[0]
         self.buttonListHeader.setText(list_name)
-        self.buttonListHeader.setToolTip(list_name)
+        list_tooltip = f'{list_name}\n{self.save_file_path}'
+        self.buttonListHeader.setToolTip(list_tooltip)
         songs_info = []
         short_names = []
         for song_info in self.list.get_all_songs(info=True):
@@ -685,7 +683,7 @@ class SongListWidget(QtWidgets.QWidget):
             else:
                 self.player.enable(False)
             self.player.set_repeat_to(PLAY_ALL)
-            self.log.debug('saving loaded list...')
+            self.log.debug(f'saving loaded list...')
             self.save() #вызывается чтобы проверить лишние файлы в папке списка.
         self.player.setFocus()
             
