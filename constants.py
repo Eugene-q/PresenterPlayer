@@ -43,7 +43,7 @@ BASE_DIR = os.path.dirname(__file__)
 USER_HOME_DIR = os.path.expanduser('~')
 USER_MUSIC_DIR = os.path.join(USER_HOME_DIR, 'Music')
 
-SONG_ITEM_UI_PATH = os.path.join(BASE_DIR, 'GUI/songitem.ui')
+SONG_ITEM_UI_PATH = os.path.join(BASE_DIR, 'GUI/songItem.ui')
 SONG_LIST_UI_PATH = os.path.join(BASE_DIR, 'GUI/songList.ui')
 MAIN_WINDOW_UI_PATH = os.path.join(BASE_DIR, 'GUI/main_window.ui')
 OPTIONS_DIALOG_UI_PATH = os.path.join(BASE_DIR, 'GUI/options.ui')
