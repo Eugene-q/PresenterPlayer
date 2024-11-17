@@ -92,7 +92,7 @@ class OptionsDialog(QtWidgets.QDialog):
         self.test_song_widget.buttonNumber.setChecked(options_set.get('show_song_number'))
 
     def save(self, event=None):
-        self.last_playlist_path = self.player.list.save_file_path
+        self.last_playlist_path = self.player.list.save_file_path 
         self.beeps_volume = self.sliderSignalsVol.value()
         options_set = {'last_playlist_path': self.last_playlist_path,
                        'signals_volume': self.beeps_volume,
@@ -147,8 +147,8 @@ class OptionsDialog(QtWidgets.QDialog):
                                 )
                #self.checkBoxHardLinkFileName.setChecked(False)
                                     
-    def set_default_dir(self, dir_line):
-        dir_ = QtWidgets.QFileDialog.getExistingDirectory(self,
+    def set_default_dir(self, dir_line, path=''):
+        dir_ = path or QtWidgets.QFileDialog.getExistingDirectory(self,
                                         'Выбрать папку',
                                         dir_line.text())
         if dir_:

@@ -318,6 +318,9 @@ class SongListWidget(QtWidgets.QWidget):
                                                         self.options.lineDefaultMusicDir.text(), 
                                                         F'Music Files (*{supported_file_types})',
                                                         )[0]
+                if filepaths:
+                    self.options.set_default_dir(self.options.lineDefaultMusicDir,
+                                                os.path.dirname(filepaths[0]))
                 self.player.setFocus()
                 filenames = []
                 current_playback_filenames = self.get_playback_dir_filenames()
@@ -325,6 +328,7 @@ class SongListWidget(QtWidgets.QWidget):
                 for filepath in filepaths:
                     filedir, filename = os.path.split(filepath)
                     improved_filename = self.improve_filename(filename)
+                    self.log.debug(f'improved filename: {improved_filename}')
                     if improved_filename:
                         filename = improved_filename
                                        # TODO Окно предупреждения об удалении недопустимых символов
@@ -629,6 +633,9 @@ class SongListWidget(QtWidgets.QWidget):
         if not save_file_path:
             save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
                                      os.path.join('.', self.options.save_dir()), 'SongList File (*.sl)')[0]
+            path, extension = os.path.splitext(save_file_path)
+            if not extension:
+                save_file_path += SONG_LIST_EXTENSION
             self.player.setFocus()
         if save_file_path and save_file_path != self.save_file_path:
             new_playback_dir_path = self.get_playback_dir_path(save_file_path)
@@ -657,6 +664,7 @@ class SongListWidget(QtWidgets.QWidget):
                                                     )[0]
             self.log.info(f'selected file to load: {load_file_path}')
         if load_file_path and self.project_is_valid(load_file_path):
+            self.options.set_default_dir(self.options.lineDefaultSaveDir, os.path.dirname(load_file_path))
             songs_info = []
             try: 
                 with open(load_file_path, 'r') as load_file:

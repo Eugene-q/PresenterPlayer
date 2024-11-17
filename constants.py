@@ -6,7 +6,7 @@ from PyQt5 import QtWidgets
 from shutil import copyfile, rmtree
 
 LOGGING_LEVEL = logging.INFO
-#LOGGING_LEVEL = logging.DEBUG
+LOGGING_LEVEL = logging.DEBUG
 NO_LOG_CLASSES = ()
 NO_LOG_METHODS = ('__str__',
                   'song', 
@@ -41,7 +41,7 @@ VALID_SYMBOL_CODES = (tuple(chr(s) for s in range(1040, 1104)) +
                         
 BASE_DIR = os.path.dirname(__file__)
 USER_HOME_DIR = os.path.expanduser('~')
-USER_MUSIC_DIR = os.path.join(USER_HOME_DIR, 'Music')
+USER_MUSIC_DIR = USER_HOME_DIR
 
 SONG_ITEM_UI_PATH = os.path.join(BASE_DIR, 'GUI/songItem.ui')
 SONG_LIST_UI_PATH = os.path.join(BASE_DIR, 'GUI/songList.ui')
