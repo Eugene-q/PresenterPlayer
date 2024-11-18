@@ -559,7 +559,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.sliderPlaybackRange.setValue(pbrange)
         if (song.start_pos, song.end_pos) != (start_pos, end_pos):
             song.set_playback_range((start_pos, end_pos))
-            self.list.save()
+            self.list.save(check_filenames=False)
         self.labelEndPos.setText(self.min_sec_from_ms(end_pos))
         if self.sliderPlaybackPos.value() < start_pos:
             self.change_pos(start_pos)
@@ -715,7 +715,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             fadein_pos, fadeout_pos = fade_range
         if song.fade_range != (fadein_pos, fadeout_pos):
             song.set_fading((fadein_pos, fadeout_pos))
-            self.list.save()
+            self.list.save(check_filenames=False)
         self.sliderFadeRange.setValue(song.fade_range)
         self.fade_raitos = self.get_fade_raitos()
     

@@ -6,7 +6,7 @@ from PyQt5 import QtWidgets
 from shutil import copyfile, rmtree
 
 LOGGING_LEVEL = logging.INFO
-LOGGING_LEVEL = logging.DEBUG
+#LOGGING_LEVEL = logging.DEBUG
 NO_LOG_CLASSES = ()
 NO_LOG_METHODS = ('__str__',
                   'song', 
