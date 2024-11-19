@@ -550,6 +550,7 @@ class SongListWidget(QtWidgets.QWidget):
     def new_list(self, event=None):
         if show_message_box(NEW_LIST_WARNING) == OK:
             self.save(check_filenames=False)
+            self.player._stop()
             self.clear(silent=True)
             new_list_name = self.get_new_list_path(just_name=True)
             self.new_list_created = True
