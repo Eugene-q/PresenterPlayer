@@ -815,17 +815,23 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.controls_enabled = setting
     
     def enable_presentation_mode(self, enable=True):
-        self.presentation_mode = enable
-        if enable:
-            self.buttonPresentationMode.setChecked(True)
-            self.on_press_hook = keyboard.on_press(self.presentation_controls)
-            self.tab_shortcut.setEnabled(False)
-        else:
+        try:
+            if enable:
+                self.on_press_hook = keyboard.on_press(self.presentation_controls)
+                self.buttonPresentationMode.setChecked(True)
+                self.tab_shortcut.setEnabled(False)
+            else:
+                self.buttonPresentationMode.setChecked(False)
+                print('PRES MODE OFF')
+                keyboard.unhook(self.on_press_hook)
+                self.tab_shortcut.setEnabled(True)
+                self.setFocus()
+        except:
+            show_message_box(ROOT_TO_USE_KEYBOARD_WARNING, cancel_text='')
+            self.log.error('Using keyboard module requires root access!')
             self.buttonPresentationMode.setChecked(False)
-            print('PRES MODE OFF')
-            keyboard.unhook(self.on_press_hook)
-            self.tab_shortcut.setEnabled(True)
-            self.setFocus()
+        else:
+            self.presentation_mode = enable
                     
     def keyPressEvent(self, event):
         self.log.debug('KEY PRESS')

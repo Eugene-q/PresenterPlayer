@@ -23,7 +23,7 @@ if not os.path.exists('logs'):
 open(INFO_LOG_PATH, 'w+').close()
 open(ERROR_LOG_PATH, 'a+').close()
 error_handler = logging.FileHandler(ERROR_LOG_PATH, mode='a')
-error_formatter = logging.Formatter("%(asctime)s %(levelname)s [%(filename)s/%(name)s/%(funcName)s/%(lineno)s] %(message)s")
+error_formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s [%(filename)s/%(name)s/%(funcName)s/%(lineno)s]")
 error_handler.setLevel(logging.ERROR)
 error_handler.setFormatter(error_formatter)
 ERROR_HANDLER = error_handler
@@ -87,6 +87,7 @@ PLAY_ONE = 2
 AS_LIST = 3
 REPEAT_ONE = 4
 
+ROOT_TO_USE_KEYBOARD_WARNING = 'Запустите программу с правами администратора(root) чтобы использовать захват клавиатуры в этой системе!'
 FOLDER_NOT_FOUND_WARNING = 'Не удалось найти папку с файлами песен!'
 SONGFILE_NOT_FOUND_WARNING = 'Не удалось найти файл\n{}'
 WRONG_FILE_NAME_WARNING = '''Вы искали файл\n{}\nно указали файл с другим именем\n{}\nВсё правильно?\n
