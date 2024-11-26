@@ -47,7 +47,7 @@ SONG_ITEM_UI_PATH = os.path.join(BASE_DIR, 'GUI/songItem.ui')
 SONG_LIST_UI_PATH = os.path.join(BASE_DIR, 'GUI/songList.ui')
 MAIN_WINDOW_UI_PATH = os.path.join(BASE_DIR, 'GUI/main_window.ui')
 OPTIONS_DIALOG_UI_PATH = os.path.join(BASE_DIR, 'GUI/options.ui')
-DEFAULT_SIGNAL_PATH = os.path.join(BASE_DIR, 'assets/signal.wav')
+DEFAULT_BEEP_PATH = os.path.join(BASE_DIR, 'assets/beep.wav')
 
 DEFAULT_PLAYBACK_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists/new_songlist_music')
 DEFAULT_SAVE_DIR = os.path.join(USER_MUSIC_DIR, 'song_lists')

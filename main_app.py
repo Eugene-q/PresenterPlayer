@@ -164,6 +164,62 @@ class OptionsDialog(QtWidgets.QDialog):
                 'mute': self.test_song_widget.buttonMute.isChecked(),
                 'delete': self.test_song_widget.buttonDelete.isChecked(),
                 }
+
+@log_class
+class Deck(QMediaPlayer):
+    def __init__(self, options, beeper=False):
+        super().__init__()
+        self.options = options
+        self.setNotifyInterval(250)
+        
+        self.positionChanged.connect(self.update_playback_slider)
+        self.stateChanged.connect(self.state_changed)
+        
+        if beeper:
+            self.set_beeper()
+        
+    def state_changed(self, state):
+        #print('DECK state changed to', state, 'deck position:', self.deck_L.position())
+        song = self.list.song(self.list.playing)
+        #print('SONG end_pos:', song.end_pos)
+        if state == STOPED:
+            if abs(self.deck_L.position() - song.end_pos) < 100:
+                self.play_next_switch = True
+                self.play_next()
+                
+    def _play(self, song):
+        self.beep()
+        self.allow_automations_update()
+        self.start_volume_update()
+        self.play()
+        self.log.info(f'PLAYING... {song.name}')
+    
+    def set_beeper(self):
+        self.beeper = QMediaPlayer()
+        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_BEEP_PATH))
+        self.beeper.setMedia(content)
+        
+    def beep(self, enabled=None, volume=None):
+        if enabled == None:
+            enabled = self.options.checkBoxEnableSignals.isChecked()
+        if volume == None:
+            volume = self.options.beeps_volume
+        if enabled:
+            self.beeper.setVolume(int(volume))
+            self.beeper.play()
+    
+
+@log_class
+class PlayController:
+    def __init__(self,):
+        pass
+    
+    def play(self):
+        self.buttonPlay.setChecked(True)
+        self.buttonPause.setChecked(False)
+        song.buttonPlay.setIcon(self.PLAY_ICON)
+        song.buttonPlay.setChecked(True)    
+        
     
 @log_class                   
 class PlayerApp(QtWidgets.QMainWindow):
