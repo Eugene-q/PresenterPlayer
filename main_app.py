@@ -165,30 +165,74 @@ class OptionsDialog(QtWidgets.QDialog):
                 'delete': self.test_song_widget.buttonDelete.isChecked(),
                 }
 
+
+class DeckControls:
+    def __init__(self, previous_button=None, 
+                       play_button=None,
+                       pause_button=None,
+                       stop_button=None,
+                       next_button=None,
+                       automations_button=None,
+                       reset_button=None,
+                       fade_slider=None,
+                       range_slider=None,
+                       volume_slider=None,
+                       ):
+        self.previous_button = previous_button
+        self.play_button = play_button
+        self.pause_button = pause_button
+        self.stop_button = stop_button
+        self.next_button = next_button
+        self.automations_button = automations_button
+        self.reset_button = reset_button
+        self.fade_slider = fade_slider
+        self.range_slider = range_slider
+        self.volume_slider = volume_slider
+        
+        
 @log_class
 class Deck(QMediaPlayer):
-    def __init__(self, options, beeper=False):
+    log = set_logger('Deck')
+    
+    def __init__(self, options, controls, beeper=False):
         super().__init__()
         self.options = options
-        self.setNotifyInterval(250)
         
+        #controls import
+        for name, value in controls.__dict__.items():
+            if not value:
+                if 'button' in name:
+                    value = QtWidgets.QPushButton()
+                else:
+                    value = QtWidgets.QSlider()
+            setattr(self, name, value)
+            
+        self.setNotifyInterval(250)
         self.positionChanged.connect(self.update_playback_slider)
         self.stateChanged.connect(self.state_changed)
         
         if beeper:
             self.set_beeper()
+    
+    def current_song(self):
+        return self.list.song(self.list.playing)
         
     def state_changed(self, state):
         #print('DECK state changed to', state, 'deck position:', self.deck_L.position())
-        song = self.list.song(self.list.playing)
+        song = self.current_song()
         #print('SONG end_pos:', song.end_pos)
         if state == STOPED:
-            if abs(self.deck_L.position() - song.end_pos) < 100:
+            if abs(self.position() - song.end_pos) < 100:
                 self.play_next_switch = True
                 self.play_next()
                 
-    def _play(self, song):
+    def play(self,):
         self.beep()
+        song = self.current_song()
+        self.buttonPlay.setChecked(True)
+        self.buttonPause.setChecked(False)
+        song.buttonPlay.setIcon(self.PLAY_ICON)
+        song.buttonPlay.setChecked(True)
         self.allow_automations_update()
         self.start_volume_update()
         self.play()
@@ -207,19 +251,7 @@ class Deck(QMediaPlayer):
         if enabled:
             self.beeper.setVolume(int(volume))
             self.beeper.play()
-    
-
-@log_class
-class PlayController:
-    def __init__(self,):
-        pass
-    
-    def play(self):
-        self.buttonPlay.setChecked(True)
-        self.buttonPause.setChecked(False)
-        song.buttonPlay.setIcon(self.PLAY_ICON)
-        song.buttonPlay.setChecked(True)    
-        
+          
     
 @log_class                   
 class PlayerApp(QtWidgets.QMainWindow):
@@ -248,19 +280,6 @@ class PlayerApp(QtWidgets.QMainWindow):
                         PLAY_ALL: {'checked': False, 'icon':  self.PLAY_ALL_ICON},
                         REPEAT_ALL: {'checked': True, 'icon':  self.REPEAT_ALL_ICON},
                        }
-        self.controls = {QtCore.Qt.Key_Escape: self.play_next,
-                         QtCore.Qt.Key_Shift: self.play_next,
-                         #QtCore.Qt.Key_Tab: self.play_pause, #tab_shortcut вместо этого.
-                         QtCore.Qt.Key_Space: self.play_pause,
-                         QtCore.Qt.Key_Up: self.vol_up, 
-                         QtCore.Qt.Key_Down: self.vol_down,
-                         QtCore.Qt.Key_B: self.play_previous,
-                         1048: self.play_previous,
-                         QtCore.Qt.Key_Left: self.step_rewind, 
-                         QtCore.Qt.Key_Right: self.step_fforward,
-                         QtCore.Qt.Key_Z: self.qlist_info,
-                         }
-        self.controls_enabled = True
         
         self.deck_L = QMediaPlayer()
         self.deck_L.setNotifyInterval(250)
@@ -283,7 +302,7 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.repeat_mode = self.prev_repeat_mode = PLAY_ALL
         
         self.beep = QMediaPlayer()
-        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_SIGNAL_PATH))
+        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_BEEP_PATH))
         self.beep.setMedia(content)
         
         self.waveform = []
@@ -348,6 +367,32 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.buttonSetEnd.clicked.connect(self.set_range)
         
         self.show_automations(False)
+        
+        deck_gui_controls = DeckControls(previous_button=self.buttonPrevious, 
+                                       play_button=self.buttonPlay,
+                                       pause_button=self.buttonPause,
+                                       stop_button=self.buttonStop,
+                                       next_button=self.buttonNext,
+                                       automations_button=self.buttonAutomations,
+                                       reset_button=self.buttonReset,
+                                       fade_slider=self.sliderFadeRange,
+                                       range_slider=self.sliderPlaybackRange,
+                                       volume_slider=self.sliderSongVol,
+                                       )
+        self.deck = Deck(self.options, deck_gui_controls, beeper=True)
+        self.controls = {QtCore.Qt.Key_Escape: self.play_next,
+                         QtCore.Qt.Key_Shift: self.play_next,
+                         #QtCore.Qt.Key_Tab: self.play_pause, #tab_shortcut вместо этого.
+                         QtCore.Qt.Key_Space: self.play_pause,
+                         QtCore.Qt.Key_Up: self.vol_up, 
+                         QtCore.Qt.Key_Down: self.vol_down,
+                         QtCore.Qt.Key_B: self.play_previous,
+                         1048: self.play_previous,
+                         QtCore.Qt.Key_Left: self.step_rewind, 
+                         QtCore.Qt.Key_Right: self.step_fforward,
+                         QtCore.Qt.Key_Z: self.qlist_info,
+                         }
+        self.controls_enabled = True
         
         self.progressBuildWaveform.hide()
         sf = QtWidgets.QStyleFactory()
