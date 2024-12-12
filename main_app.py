@@ -177,6 +177,7 @@ class DeckControls:
                        fade_slider=None,
                        range_slider=None,
                        volume_slider=None,
+                       playback_slider=None,
                        ):
         self.previous_button = previous_button
         self.play_button = play_button
@@ -188,14 +189,20 @@ class DeckControls:
         self.fade_slider = fade_slider
         self.range_slider = range_slider
         self.volume_slider = volume_slider
+        self.playback_slider = playback_slider
         
         
 @log_class
 class Deck(QMediaPlayer):
     log = set_logger('Deck')
     
-    def __init__(self, options, controls, beeper=False):
+    def __init__(self, songlist, options, controls, beeper=False):
         super().__init__()
+        
+        self.PLAY_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/play.png'))
+        self.PAUSED_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/pause.png')). #TODO Решить что с иконками
+        
+        self.list = songlist
         self.options = options
         
         #controls import
@@ -203,13 +210,27 @@ class Deck(QMediaPlayer):
             if not value:
                 if 'button' in name:
                     value = QtWidgets.QPushButton()
-                else:
+                elif 'slider' in name:
                     value = QtWidgets.QSlider()
             setattr(self, name, value)
-            
+        
+        #QMediaPlayer settings    
         self.setNotifyInterval(250)
         self.positionChanged.connect(self.update_playback_slider)
         self.stateChanged.connect(self.state_changed)
+        
+        self.play_next_switch = False
+        self.allow_playback_update = True
+        self.allow_volume_update = True
+        self.playback_update_thread = None
+        self.volume_update_thread = None
+        self.high_acuracy = False
+        self.song_volume = 100
+        self.fade_raitos = (0, 0)
+        self.master_volume = self.START_VOLUME
+        self.state = STOPED
+        self.enabled = True
+        self.repeat_mode = self.prev_repeat_mode = PLAY_ALL
         
         if beeper:
             self.set_beeper()
@@ -237,6 +258,26 @@ class Deck(QMediaPlayer):
         self.start_volume_update()
         self.play()
         self.log.info(f'PLAYING... {song.name}')
+    
+    def update_playback_slider(self, playback_pos):
+        song = self.current_song()
+        if self.state == PLAYING and self.position() >= song.end_pos and not self.play_next_switch:
+            self.play_next_switch = True
+            self.play_next()                    #Оставить логику выбора следующей песни в PlayerApp************************
+            #self.end_of_playback.emit()
+            #print('END OF PLAYBACK emited')
+            return
+        if self.allow_playback_update:
+            self.playback_slider.setValue(playback_pos)
+        if playback_pos % 1000 < 250:
+            current_min_sec, current_millisec = self.min_sec_from_ms(playback_pos, show_ms=True)
+            self.labelCurrentPos.setText(current_min_sec)
+            if self.high_acuracy:
+                self.labelCurrentPosMs.setText(current_millisec)
+                if self.allow_playback_update:
+                    self.high_acuracy = False
+            else:
+                self.labelCurrentPosMs.hide()
     
     def set_beeper(self):
         self.beeper = QMediaPlayer()
@@ -378,8 +419,9 @@ class PlayerApp(QtWidgets.QMainWindow):
                                        fade_slider=self.sliderFadeRange,
                                        range_slider=self.sliderPlaybackRange,
                                        volume_slider=self.sliderSongVol,
+                                       playback_slider=self.sliderPlaybackPos,
                                        )
-        self.deck = Deck(self.options, deck_gui_controls, beeper=True)
+        self.deck = Deck(self.list, self.options, deck_gui_controls, beeper=True)
         self.controls = {QtCore.Qt.Key_Escape: self.play_next,
                          QtCore.Qt.Key_Shift: self.play_next,
                          #QtCore.Qt.Key_Tab: self.play_pause, #tab_shortcut вместо этого.
