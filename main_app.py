@@ -199,8 +199,8 @@ class Deck(QMediaPlayer):
     def __init__(self, songlist, options, controls, beeper=False):
         super().__init__()
         
-        self.PLAY_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/play.png'))
-        self.PAUSED_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/pause.png')). #TODO Решить что с иконками
+        self.PLAY_ICON = QIcon(QPixmap(':player/icons/play.png'))
+        self.PAUSED_ICON = QIcon(QPixmap(':player/icons/pause.png')) #TODO Решить что с иконками
         
         self.list = songlist
         self.options = options
@@ -292,7 +292,7 @@ class Deck(QMediaPlayer):
         if enabled:
             self.beeper.setVolume(int(volume))
             self.beeper.play()
-          
+            
     
 @log_class                   
 class PlayerApp(QtWidgets.QMainWindow):
@@ -408,7 +408,7 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.buttonSetEnd.clicked.connect(self.set_range)
         
         self.show_automations(False)
-        
+
         deck_gui_controls = DeckControls(previous_button=self.buttonPrevious, 
                                        play_button=self.buttonPlay,
                                        pause_button=self.buttonPause,
@@ -422,20 +422,19 @@ class PlayerApp(QtWidgets.QMainWindow):
                                        playback_slider=self.sliderPlaybackPos,
                                        )
         self.deck = Deck(self.list, self.options, deck_gui_controls, beeper=True)
-        self.controls = {QtCore.Qt.Key_Escape: self.play_next,
-                         QtCore.Qt.Key_Shift: self.play_next,
-                         #QtCore.Qt.Key_Tab: self.play_pause, #tab_shortcut вместо этого.
-                         QtCore.Qt.Key_Space: self.play_pause,
-                         QtCore.Qt.Key_Up: self.vol_up, 
-                         QtCore.Qt.Key_Down: self.vol_down,
-                         QtCore.Qt.Key_B: self.play_previous,
+        self.controls = {Qt.Key_Escape: self.play_next,
+                         Qt.Key_Shift: self.play_next,
+                         #Qt.Key_Tab: self.play_pause, #tab_shortcut вместо этого.
+                         Qt.Key_Space: self.play_pause,
+                         Qt.Key_Up: self.vol_up, 
+                         Qt.Key_Down: self.vol_down,
+                         Qt.Key_B: self.play_previous,
                          1048: self.play_previous,
-                         QtCore.Qt.Key_Left: self.step_rewind, 
-                         QtCore.Qt.Key_Right: self.step_fforward,
-                         QtCore.Qt.Key_Z: self.qlist_info,
+                         Qt.Key_Left: self.step_rewind, 
+                         Qt.Key_Right: self.step_fforward,
+                         Qt.Key_Z: self.qlist_info,
                          }
         self.controls_enabled = True
-        
         self.progressBuildWaveform.hide()
         sf = QtWidgets.QStyleFactory()
         self.progressBuildWaveform.setStyle(sf.create('Fusion'))
