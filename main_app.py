@@ -10,7 +10,7 @@ import os
 import logging
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5 import uic
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QUrl, Qt
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 import assets.icons
 from superqt import QRangeSlider
@@ -195,12 +195,16 @@ class DeckControls:
 @log_class
 class Deck(QMediaPlayer):
     log = set_logger('Deck')
+    START_VOLUME = 50
+    MAX_VOL = 100
+    MIN_VOL = 0
+    VOLUME_STEP = 5
     
     def __init__(self, songlist, options, controls, beeper=False):
         super().__init__()
         
-        self.PLAY_ICON = QIcon(QPixmap(':player/icons/play.png'))
-        self.PAUSED_ICON = QIcon(QPixmap(':player/icons/pause.png')) #TODO Решить что с иконками
+        self.PLAY_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/play.png'))
+        self.PAUSED_ICON = QtGui.QIcon(QtGui.QPixmap(':player/icons/pause.png')) #TODO Решить что с иконками
         
         self.list = songlist
         self.options = options
@@ -408,6 +412,9 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.buttonSetEnd.clicked.connect(self.set_range)
         
         self.show_automations(False)
+        
+        self.list = SongListWidget(self, self.options)
+        self.layoutSongList.addWidget(self.list)
 
         deck_gui_controls = DeckControls(previous_button=self.buttonPrevious, 
                                        play_button=self.buttonPlay,
@@ -438,9 +445,6 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.progressBuildWaveform.hide()
         sf = QtWidgets.QStyleFactory()
         self.progressBuildWaveform.setStyle(sf.create('Fusion'))
-        
-        self.list = SongListWidget(self, self.options)
-        self.layoutSongList.addWidget(self.list)
         
         self.tab_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Tab), self)
         self.tab_shortcut.activated.connect(self.play_pause)#пока костыль в play_pause для отключения ТАБ при
