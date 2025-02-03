@@ -326,10 +326,10 @@ class PlayerApp(QtWidgets.QMainWindow):
                         REPEAT_ALL: {'checked': True, 'icon':  self.REPEAT_ALL_ICON},
                        }
         
-        self.deck_L = QMediaPlayer()
-        self.deck_L.setNotifyInterval(250)
-        self.deck_L.positionChanged.connect(self.update_playback_slider)
-        self.deck_L.stateChanged.connect(self.deck_state_changed)
+        # self.deck_L = QMediaPlayer()
+#         self.deck_L.setNotifyInterval(250)
+#         self.deck_L.positionChanged.connect(self.update_playback_slider)
+#         self.deck_L.stateChanged.connect(self.deck_state_changed)
         #self.end_of_playback.connect(self.play_next)
         #self.deck_R = QMediaPlayer()
         
@@ -346,42 +346,24 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.enabled = True
         self.repeat_mode = self.prev_repeat_mode = PLAY_ALL
         
-        self.beep = QMediaPlayer()
-        content = QMediaContent(QUrl.fromLocalFile(DEFAULT_BEEP_PATH))
-        self.beep.setMedia(content)
+        #self.beep = QMediaPlayer()
+        #content = QMediaContent(QUrl.fromLocalFile(DEFAULT_BEEP_PATH))
+        #self.beep.setMedia(content)
         
         self.waveform = []
         
         self.options = OptionsDialog(OPTIONS_FILE_PATH, self)
         self.presentation_mode = False
         
-        self.buttonOptions.clicked.connect(self.options.show)
-        self.buttonPrevious.clicked.connect(self.play_previous)
-        self.buttonStop.clicked.connect(self._stop)
-        self.buttonPlay.clicked.connect(self.play_pause)
-        self.buttonPause.clicked.connect(self.play_pause)
-        self.buttonNext.clicked.connect(self.play_next)
-        
-        self.buttonRepeat.clicked.connect(self.set_repeat)
         self.set_repeat_to(PLAY_ALL)
         
-        self.buttonAutomations.clicked.connect(self.show_automations)
-        self.buttonReset.clicked.connect(self.reset_song_settings)
-        self.buttonPresentationMode.clicked.connect(self.enable_presentation_mode)
-        
-        self.sliderMasterVol.valueChanged.connect(self.master_vol_change)
-        self.sliderSongVol.valueChanged.connect(self.song_vol_change)
-        self.sliderSongVol.sliderPressed.connect(self.deny_volume_automation)
-        self.sliderSongVol.sliderReleased.connect(self.song_vol_write)
+        # INTERFACE
         
         self.sliderPlaybackPos.resize(self.width() - PLAYBACK_SLIDER_WIDTH_OFFSET, PLAYBACK_SLIDER_HEIGHT)
-        self.sliderPlaybackPos.sliderPressed.connect(self.deny_playback_automation)
-        self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
         self.labelCurrentPosMs.hide()
         
         self.sliderFadeRange = QRangeSlider()
         self.sliderFadeRange.setOrientation(QtCore.Qt.Horizontal)
-        self.sliderFadeRange.sliderReleased.connect(self.change_fade_range)
         self.buttonSetFadeIn = QtWidgets.QToolButton()
         self.buttonSetFadeIn.setIcon(self.FADEIN_ICON)
         self.buttonSetFadeIn.setFixedSize(48, 25)
@@ -392,12 +374,9 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.layoutVolumeRange.addWidget(self.buttonSetFadeIn)
         self.layoutVolumeRange.addWidget(self.sliderFadeRange)
         self.layoutVolumeRange.addWidget(self.buttonSetFadeOut)
-        self.buttonSetFadeIn.clicked.connect(self.set_fade_range)
-        self.buttonSetFadeOut.clicked.connect(self.set_fade_range)
         
         self.sliderPlaybackRange = QRangeSlider()
         self.sliderPlaybackRange.setOrientation(QtCore.Qt.Horizontal)
-        self.sliderPlaybackRange.sliderReleased.connect(self.change_range)
         self.buttonSetStart = QtWidgets.QToolButton()
         self.buttonSetStart.setIcon(self.START_ICON)
         self.buttonSetStart.setFixedSize(48, 25)
@@ -408,13 +387,41 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.layoutPlaybackRange.addWidget(self.buttonSetStart)
         self.layoutPlaybackRange.addWidget(self.sliderPlaybackRange)
         self.layoutPlaybackRange.addWidget(self.buttonSetEnd)
-        self.buttonSetStart.clicked.connect(self.set_range)
-        self.buttonSetEnd.clicked.connect(self.set_range)
         
         self.show_automations(False)
         
         self.list = SongListWidget(self, self.options)
         self.layoutSongList.addWidget(self.list)
+        
+        #CONNECTIONS
+        self.buttonOptions.clicked.connect(self.options.show)
+        self.buttonPrevious.clicked.connect(self.play_previous)
+        self.buttonStop.clicked.connect(self._stop)
+        self.buttonPlay.clicked.connect(self.play_pause)
+        self.buttonPause.clicked.connect(self.play_pause)
+        self.buttonNext.clicked.connect(self.play_next)
+        self.buttonRepeat.clicked.connect(self.set_repeat)
+        
+        self.buttonAutomations.clicked.connect(self.show_automations)
+        self.buttonReset.clicked.connect(self.reset_song_settings)
+        self.buttonPresentationMode.clicked.connect(self.enable_presentation_mode)
+        
+        self.sliderMasterVol.valueChanged.connect(self.master_vol_change)
+        self.sliderSongVol.valueChanged.connect(self.song_vol_change)
+        self.sliderSongVol.sliderPressed.connect(self.deny_volume_automation)
+        self.sliderSongVol.sliderReleased.connect(self.song_vol_write)
+        
+        self.sliderPlaybackPos.sliderPressed.connect(self.deny_playback_automation)
+        self.sliderPlaybackPos.sliderReleased.connect(self.change_pos)
+        
+        self.sliderFadeRange.sliderReleased.connect(self.change_fade_range)
+        
+        self.buttonSetFadeIn.clicked.connect(self.set_fade_range)
+        self.buttonSetFadeOut.clicked.connect(self.set_fade_range)
+        
+        self.sliderPlaybackRange.sliderReleased.connect(self.change_range)
+        self.buttonSetStart.clicked.connect(self.set_range)
+        self.buttonSetEnd.clicked.connect(self.set_range)
 
         deck_gui_controls = DeckControls(previous_button=self.buttonPrevious, 
                                        play_button=self.buttonPlay,

@@ -28,11 +28,11 @@ class SongWidget(QtWidgets.QWidget):
                        waveform=[]
                        ):
         super().__init__()
-        
-        self.log = logging.getLogger(self.__class__.__name__)
-        self.log.setLevel(LOGGING_LEVEL)
-        self.log.addHandler(ERROR_HANDLER)
-        self.log.addHandler(DEBUG_HANDLER)
+        #
+        # self.log = logging.getLogger(self.__class__.__name__)
+        # self.log.setLevel(LOGGING_LEVEL)
+        # self.log.addHandler(ERROR_HANDLER)
+        # self.log.addHandler(DEBUG_HANDLER)
         
         self.id = id
         self.name = name
