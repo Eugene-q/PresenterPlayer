@@ -223,7 +223,7 @@ class Deck(QMediaPlayer):
         self.list = songlist
         self.options = options
         
-        #controls import
+        #GUI controls import
         for name, value in controls.__dict__.items():
             if not value:
                 if 'button' in name:
@@ -231,6 +231,14 @@ class Deck(QMediaPlayer):
                 elif 'slider' in name:
                     value = QtWidgets.QSlider()
             setattr(self, name, value)
+            
+        #GUI CONNECTION
+        self.buttonPrevious.clicked.connect(self.play_previous)
+        self.buttonStop.clicked.connect(self._stop)
+        self.buttonPlay.clicked.connect(self.play_pause)
+        self.buttonPause.clicked.connect(self.play_pause)
+        self.buttonNext.clicked.connect(self.play_next)
+        #self.buttonRepeat.clicked.connect(self.set_repeat)
         
         #QMediaPlayer settings    
         self.setNotifyInterval(250)
@@ -279,12 +287,30 @@ class Deck(QMediaPlayer):
     def enable_controls(self, setting=True):
         self.controls_enabled = setting
     
-    def current_song(self):
+    def show_automations(self, show=True):
+        if show:
+            self.buttonAutomations.setChecked(True)
+            self.buttonSetStart.show()
+            self.sliderPlaybackRange.show()
+            self.buttonSetEnd.show()
+            self.buttonSetFadeIn.show()
+            self.sliderFadeRange.show()
+            self.buttonSetFadeOut.show()
+        else:
+            self.buttonAutomations.setChecked(False)
+            self.buttonSetStart.hide()
+            self.sliderPlaybackRange.hide()
+            self.buttonSetEnd.hide()
+            self.buttonSetFadeIn.hide()
+            self.sliderFadeRange.hide()
+            self.buttonSetFadeOut.hide()
+    
+    def playing_song(self):
         return self.list.song(self.list.playing)
         
     def state_changed(self, state):
         #print('DECK state changed to', state, 'deck position:', self.deck_L.position())
-        song = self.current_song()
+        song = self.playing_song()
         #print('SONG end_pos:', song.end_pos)
         if state == STOPED:
             if abs(self.position() - song.end_pos) < 100:
@@ -308,10 +334,42 @@ class Deck(QMediaPlayer):
             self.show_automations()
             if self.fade_raitos[0]:
                 self.sliderSongVol.setValue(0)
-                
-    def play(self,):
+    
+    def play_previous(self, event=None):
         self.beep()
-        song = self.current_song()
+        state = self.state
+        self._stop()
+        previous_song = self.list.get_song('previous', state)
+        while previous_song and previous_song.muted:
+            previous_song = self.list.get_song('previous', state)
+        if previous_song:
+            self.eject()   
+            self.load(previous_song)
+            if self.options.checkBoxAutoplayRew.isChecked():
+                self._play()
+    
+    def _stop(self, event=None):
+        self.beep()
+        self.stop()
+        self.state = STOPED
+        self.buttonPlay.setChecked(False)
+        self.buttonPause.setChecked(False)
+        song = self.playing_song()
+        if song:
+            song.buttonPlay.setIcon(self.PLAY_ICON)
+            song.buttonPlay.setChecked(False)
+            self.change_pos(song.start_pos)
+        else:
+            self.change_pos(0)
+        if (self.sender() == self.buttonStop and
+                 song != self.list.song(self.list.selected)):
+            self.eject()
+            self.list.set_row(self.list.selected, playing=True)
+            self.load(self.list.song(self.list.playing))
+                
+    def _play(self,):
+        self.beep()
+        song = self.playing_song()
         self.buttonPlay.setChecked(True)
         self.buttonPause.setChecked(False)
         song.buttonPlay.setIcon(self.PLAY_ICON)
@@ -320,6 +378,72 @@ class Deck(QMediaPlayer):
         self.start_volume_update()
         self.play()
         self.log.info(f'PLAYING... {song.name}')
+    
+    def play_pause(self, event=None, song=None):   
+        #self.play_beep()
+        current_playing_song = self.list.song(self.list.playing)
+        if song and song != current_playing_song:
+            self._stop()
+            self.eject()
+            self.list.set_row(song, playing=True)
+            #self.load(sender)
+        elif not self.enabled:
+            self.log.debug('Controls disabled!')
+            return
+        if self.state == STOPED:
+            if current_playing_song != self.list.song(self.list.selected):
+                self.eject()
+                self.list.set_row(self.list.selected, playing=True)
+                #self.load(self.list.song(self.list.selected))
+            self._play()
+            if self.sender() and self.sender() == self.buttonPause:
+                self._pause()
+        else:
+            if self.state == PAUSED or not self.deck_L.state() == PLAYING:
+                self._play()
+            else:
+                self._pause()
+    
+    def play_next(self, event=None):
+        self.beep()
+        state = self.state
+        self._stop()
+        prev_song = self.list.song(self.list.playing)
+        if prev_song.repeat_mode == REPEAT_ONE and self.sender() == self.deck_L:
+            self.load(prev_song) #загрузка, чтобы сбросить настройки деки
+            self._play()
+        else:
+            next_song = self.get_next_song(state)
+            if next_song: #условия разделены по логике для кнопки перемотки и конца трека
+                if self.sender() == self.deck_L:
+                    if prev_song.repeat_mode != PLAY_ONE:
+                        self._play()
+                elif self.options.checkBoxAutoplayFforw.isChecked():
+                    self._play()
+        self.play_next_switch = False
+        self.log.debug('play next switched to False')
+    
+    def change_pos(self, pos=None):
+        #print('CHANGE_POS --')
+        #print('pos:', pos)
+        if pos == None: # отпущен слайдер позиции
+            slider_pos = self.sliderPlaybackPos.value()
+        else:   # нажата кнопка перемотки
+            slider_pos = pos
+        start_pos, end_pos = self.sliderPlaybackRange.value()
+        if slider_pos < start_pos:
+            slider_pos = start_pos
+        elif slider_pos > end_pos:
+            slider_pos = end_pos
+        self.setPosition(slider_pos)
+        self.sliderPlaybackPos.setValue(slider_pos)
+        current_min_sec, current_millisec = self.min_sec_from_ms(slider_pos, show_ms=True)
+        self.labelCurrentPos.setText(current_min_sec)
+        if self.high_acuracy:
+            self.labelCurrentPosMs.show()
+            self.labelCurrentPosMs.setText(current_millisec)
+        #print('CHANGE_POS: changed to', slider_pos)
+        self.allow_automations_update(playback=True, volume=None)
     
     def change_range(self, pbrange=None):
         song = self.list.song(self.list.playing)
@@ -374,8 +498,26 @@ class Deck(QMediaPlayer):
         self.log.debug(f'{fade_in_raito} {fade_out_raito}')
         return (fade_in_raito, fade_out_raito)
     
+    def allow_automations_update(self, playback=True, volume=True):
+        if playback is not None:
+            self.allow_playback_update = playback
+        if volume is not None:
+            self.allow_volume_update = volume
+
+    def start_volume_update(self):
+        if self.volume_update_thread:
+            if self.volume_update_thread.is_alive():
+                self.allow_automations_update(playback=None, volume=False)
+        playback_pos = self.position() #дублировано для проверки повтора
+        #to_end_delta = song.end_pos - playback_pos #дублировано для проверки перехода
+        self.log.debug('START VOLUME AUTOMATION')
+        self.allow_automations_update(playback=None, volume=True)
+        self.volume_update_thread = Thread(target=self.update_volume_automation,
+               args=(self.playing_song(), playback_pos))
+        self.volume_update_thread.start()
+    
     def update_playback_slider(self, playback_pos):
-        song = self.current_song()
+        song = self.playing_song()
         if self.state == PLAYING and self.position() >= song.end_pos and not self.play_next_switch:
             self.play_next_switch = True
             self.play_next()                    #Оставить логику выбора следующей песни в PlayerApp************************
@@ -393,6 +535,37 @@ class Deck(QMediaPlayer):
                     self.high_acuracy = False
             else:
                 self.labelCurrentPosMs.hide()
+    
+    def update_volume_automation(self, song, playback_pos):
+        #print('VOLUME AUTOMATION --')
+        fade_volume = 0
+        while (self.allow_volume_update and
+                self.state == PLAYING):
+            playback_pos = self.deck_L.position()
+            if song.faded and playback_pos % 250 < 20:
+                fadein_raito, fadeout_raito = self.fade_raitos
+                fade_in, fade_out = song.fade_range
+                #print()
+                #print('in raito:', fadein_raito, 'out_raito', fadeout_raito)
+                #print('playback_pos:', playback_pos, 'in_pos', fade_in, 'out_pos:', fade_out)
+                if playback_pos < fade_in and fadein_raito:
+                    fade_pos = abs(playback_pos - song.start_pos)
+                    new_fade_volume = int(fade_pos * fadein_raito)
+                    if new_fade_volume != fade_volume:    
+                        fade_volume = new_fade_volume 
+                        print('fade in! volume:', fade_volume)
+                        self.sliderSongVol.setValue(fade_volume)
+                elif fade_volume != song.volume and playback_pos < fade_out:
+                    self.sliderSongVol.setValue(song.volume)
+                    fade_volume = song.volume
+                elif playback_pos > fade_out and fadeout_raito:
+                    fade_pos = abs(playback_pos - song.end_pos)
+                    new_fade_volume = int(fade_pos * fadeout_raito)
+                    if new_fade_volume != fade_volume:    
+                        fade_volume = new_fade_volume 
+                        print('fade out! volume:', fade_volume)
+                        self.sliderSongVol.setValue(fade_volume)
+        self.log.debug('volume automation off')
     
     def set_beeper(self):
         self.beeper = QMediaPlayer()
@@ -516,14 +689,37 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.list = SongListWidget(self, self.options)
         self.layoutSongList.addWidget(self.list)
         
+        #MAIN DECK 
+        deck_gui_controls = DeckControls(buttonPrevious=self.buttonPrevious, 
+                                       buttonPlay=self.buttonPlay,
+                                       buttonPause=self.buttonPause,
+                                       buttonStop=self.buttonStop,
+                                       buttonNext=self.buttonNext,
+                                       buttonAutomations=self.buttonAutomations,
+                                       buttonReset=self.buttonReset,
+                                       buttonSetStart=self.buttonSetStart,
+                                       buttonSetEnd=self.buttonSetEnd,
+                                       buttonSetFadeIn=self.buttonSetFadeIn,
+                                       buttonSetFadeOut=self.buttonSetFadeOut,
+                                       sliderFadeRange=self.sliderFadeRange,
+                                       sliderPlaybackRange=self.sliderPlaybackRange,
+                                       sliderSongVol=self.sliderSongVol,
+                                       sliderPlaybackPos=self.sliderPlaybackPos,
+                                       labelCurrentPos=self.labelCurrentPos,
+                                       labelCurrentPosMs=self.labelCurrentPosMs,
+                                       labelEndPos=self.labelEndPos,
+                                       )
+        self.deck = Deck(self.list, self.options, deck_gui_controls, beeper=True)
+        
         #CONNECTIONS
         self.buttonOptions.clicked.connect(self.options.show)
-        self.buttonPrevious.clicked.connect(self.play_previous)
-        self.buttonStop.clicked.connect(self._stop)
-        self.buttonPlay.clicked.connect(self.play_pause)
-        self.buttonPause.clicked.connect(self.play_pause)
-        self.buttonNext.clicked.connect(self.play_next)
-        self.buttonRepeat.clicked.connect(self.set_repeat)
+        
+        # self.buttonPrevious.clicked.connect(self.play_previous)
+#         self.buttonStop.clicked.connect(self._stop)
+#         self.buttonPlay.clicked.connect(self.play_pause)
+#         self.buttonPause.clicked.connect(self.play_pause)
+#         self.buttonNext.clicked.connect(self.play_next)
+#         self.buttonRepeat.clicked.connect(self.set_repeat)
         
         self.buttonAutomations.clicked.connect(self.show_automations)
         self.buttonReset.clicked.connect(self.reset_song_settings)
@@ -546,26 +742,6 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.buttonSetStart.clicked.connect(self.set_range)
         self.buttonSetEnd.clicked.connect(self.set_range)
 
-        deck_gui_controls = DeckControls(buttonPrevious=self.buttonPrevious, 
-                                       buttonPlay=self.buttonPlay,
-                                       buttonPause=self.buttonPause,
-                                       buttonStop=self.buttonStop,
-                                       buttonNext=self.buttonNext,
-                                       buttonAutomations=self.buttonAutomations,
-                                       buttonReset=self.buttonReset,
-                                       buttonSetStart=self.buttonSetStart,
-                                       buttonSetEnd=self.buttonSetEnd,
-                                       buttonSetFadeIn=self.buttonSetFadeIn,
-                                       buttonSetFadeOut=self.buttonSetFadeOut,
-                                       sliderFadeRange=self.sliderFadeRange,
-                                       sliderPlaybackRange=self.sliderPlaybackRange,
-                                       sliderSongVol=self.sliderSongVol,
-                                       sliderPlaybackPos=self.sliderPlaybackPos,
-                                       labelCurrentPos=self.labelCurrentPos,
-                                       labelCurrentPosMs=self.labelCurrentPosMs,
-                                       labelEndPos=self.labelEndPos,
-                                       )
-        self.deck = Deck(self.list, self.options, deck_gui_controls, beeper=True)
         self.controls = {Qt.Key_Escape: self.play_next,
                          Qt.Key_Shift: self.play_next,
                          #Qt.Key_Tab: self.play_pause, #tab_shortcut вместо этого.
@@ -660,7 +836,8 @@ class PlayerApp(QtWidgets.QMainWindow):
         
     def play_pause(self, event=None, song=None):   
         #self.play_beep()
-        if song and song != self.list.song(self.list.playing):
+        current_playing_song = self.list.song(self.list.playing)
+        if song and song != current_playing_song:
             self._stop()
             self.eject()
             self.list.set_row(song, playing=True)
@@ -669,7 +846,7 @@ class PlayerApp(QtWidgets.QMainWindow):
             self.log.debug('Controls disabled!')
             return
         if self.state == STOPED:
-            if self.list.song(self.list.playing) != self.list.song(self.list.selected):
+            if current_playing_song != self.list.song(self.list.selected):
                 self.eject()
                 self.list.set_row(self.list.selected, playing=True)
                 #self.load(self.list.song(self.list.selected))
@@ -969,9 +1146,10 @@ class PlayerApp(QtWidgets.QMainWindow):
         if self.state == PLAYING:
             self.start_volume_update()
             
-    def apply_volume(self):
+    def apply_volume(self, deck=None):
+        deck = deck or self.deck
         mixer_volume = int((self.song_volume * self.master_volume) / 100)
-        self.deck_L.setVolume(mixer_volume)
+        deck.setVolume(mixer_volume)
     
     def vol_up(self, event=None):
         next_master_volume = self.master_volume + self.VOLUME_STEP
@@ -1161,7 +1339,7 @@ class PlayerApp(QtWidgets.QMainWindow):
         self.options.save()
         self.deny_playback_automation()
         self.deny_volume_automation()
-        self.deck_L.stop()
+        self.deck.stop()
         self.list.save(check_filenames=False)
         event.accept()
     

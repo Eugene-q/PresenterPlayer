@@ -15,6 +15,7 @@ NO_LOG_METHODS = ('__str__',
                   'paintEvent',
                   'update_playback_slider',
                   'min_sec_from_ms',
+                  'playing_song'
                   )
 INFO_LOG_PATH = 'logs/info.log'
 ERROR_LOG_PATH = 'logs/error.log'
