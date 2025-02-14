@@ -317,7 +317,8 @@ class Deck(QMediaPlayer):
                 self.play_next_switch = True
                 self.play_next()
     
-    def load(self, song, song_path):
+    def load(self, song):
+        song_path = os.path.join(self.list.playback_dir, song.file_name)
         content = QMediaContent(QUrl.fromLocalFile(song_path))
         self.setMedia(content)
         self.setPosition(song.start_pos)
@@ -379,6 +380,16 @@ class Deck(QMediaPlayer):
         self.play()
         self.log.info(f'PLAYING... {song.name}')
     
+    def _pause(self):
+        song = self.playing_song()
+        self.beep()
+        self.pause()
+        self.state = PAUSED
+        self.buttonPlay.setChecked(False)
+        self.buttonPause.setChecked(True)
+        song.buttonPlay.setIcon(self.PAUSED_ICON)
+        song.buttonPlay.setChecked(True)
+
     def play_pause(self, event=None, song=None):   
         #self.play_beep()
         current_playing_song = self.list.song(self.list.playing)
@@ -415,7 +426,7 @@ class Deck(QMediaPlayer):
         else:
             next_song = self.get_next_song(state)
             if next_song: #условия разделены по логике для кнопки перемотки и конца трека
-                if self.sender() == self.deck_L:
+                if self.sender() == self:
                     if prev_song.repeat_mode != PLAY_ONE:
                         self._play()
                 elif self.options.checkBoxAutoplayFforw.isChecked():
@@ -423,6 +434,23 @@ class Deck(QMediaPlayer):
         self.play_next_switch = False
         self.log.debug('play next switched to False')
     
+    def get_next_song(self, state):
+        repeat_mode = self.repeat_mode
+        next_song = None
+        song = self.list.get_song('next', state)
+        while song and song.muted:
+            song = self.list.get_song('next', state)
+        if song:
+            next_song = song
+        elif repeat_mode == REPEAT_ALL:
+            self.list.playing = 0
+            self.list.set_current_row(0)
+            song = self.list.song(0)
+            while song and song.muted:
+                song = self.list.get_song('next', state)
+            next_song = song
+        return next_song
+
     def change_pos(self, pos=None):
         #print('CHANGE_POS --')
         #print('pos:', pos)
@@ -567,6 +595,17 @@ class Deck(QMediaPlayer):
                         self.sliderSongVol.setValue(fade_volume)
         self.log.debug('volume automation off')
     
+    def eject(self):
+        song = self.playing_song()
+        if song:
+            song.normal_mode()
+            song.buttonPlay.setIcon(self.PLAY_ICON)
+            song.buttonPlay.setChecked(False)
+            self.log.debug(f'{song.name} ejected')
+        self.show_automations(False)
+        self.enable(False, just_playback=True)
+        self.waveform = []
+
     def set_beeper(self):
         self.beeper = QMediaPlayer()
         content = QMediaContent(QUrl.fromLocalFile(DEFAULT_BEEP_PATH))
@@ -1056,10 +1095,9 @@ class PlayerApp(QtWidgets.QMainWindow):
         if song:
             self.waveform = song.waveform
             self.resizeEvent(QtGui.QResizeEvent)
-            song_path = os.path.join(self.list.playback_dir, song.file_name)
             if not song.muted:
                 self.enable()
-                self.deck.load(song, song_path)
+                self.deck.load(song)
                 # content = QMediaContent(QUrl.fromLocalFile(song_path))
 #                 self.deck_L.setMedia(content)
 #                 self.deck_L.setPosition(song.start_pos)
