@@ -28,11 +28,6 @@ class SongWidget(QtWidgets.QWidget):
                        waveform=[]
                        ):
         super().__init__()
-        #
-        # self.log = logging.getLogger(self.__class__.__name__)
-        # self.log.setLevel(LOGGING_LEVEL)
-        # self.log.addHandler(ERROR_HANDLER)
-        # self.log.addHandler(DEBUG_HANDLER)
         
         self.id = id
         self.name = name
@@ -282,12 +277,9 @@ class SongListWidget(QtWidgets.QWidget):
         if not os.path.exists(self.options.save_dir()):
             os.mkdir(self.options.save_dir())
         self.selected = 0               #selected song index
-        self.playing = self.selected    #playing song index
+        #self.playing = self.selected    #playing song index
         self.set_current_row(0)
-        
-    def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
-        return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
-       
+    
     def add_songs(self, filenames=[], songs_info=[]): 
         if filenames:
             self.log.info('add songs by filenames')
@@ -372,6 +364,217 @@ class SongListWidget(QtWidgets.QWidget):
                 self.set_row(0)
             self.get_waveforms(new_songs_info)
     
+    def add_song_widget(self, song_widget, row=False):
+        item = QtWidgets.QListWidgetItem()
+        if row is False:
+            self.list.addItem(item)
+        else:
+            self.list.insertItem(row, item)
+        self.list.setItemWidget(item, song_widget)
+        if song_widget.muted:
+            song_widget.buttonPlay.setDisabled(True)
+    
+    def change_row(self, row):
+        self.selected = row
+        self.log.debug(f'Selected song index: {self.selected}')
+        #print('Player_state:', self.player.state)
+        if self.player.state is STOPED:
+            self.log.debug('if player stoped commented code')
+            # self.playing = row
+#             song = self.song(self.playing)
+#             if song:
+#                 self.player.eject()
+#                 self.player.load(song)
+#                 self.normal_mode()
+#             else:
+#                 self.log.debug('Song widget not detected!')
+#                 self.player.enable(False)
+        if self.renamed_song:
+            self.renamed_song.normal_mode()
+    
+    def clear(self, silent=False):
+        result = False
+        if not self.is_empty():
+            message_result = None
+            if not silent:
+                message_result = show_message_box(CLEAR_WARNING, 
+                                                    ok_text='Очистить',
+                                                    checkbox_text='Удалить также и файлы песен')
+            if silent or message_result == OK or message_result == OK_CHECKED:
+                self.list.clear()
+                self.player.eject()
+                self.player.enable(False)
+                if message_result == OK_CHECKED:
+                    self.save(silent=True)
+                result = True
+            else:
+                self.player.enable()
+        self.player.setFocus()
+        return result
+    
+    def delete(self, event=None):
+        if show_message_box(LIST_DELETE_WARNING) == OK:
+            self.player._stop()
+            self.player.eject()
+            self.clear(silent=True)
+            remove_file(self.save_file_path, self.log)
+            remove_dir(self.playback_dir)
+            self.save_file_path = self.get_new_list_path()
+            self.playback_dir = self.get_playback_dir_path(self.save_file_path)
+            if os.path.exists(self.playback_dir):
+                remove_dir(self.playback_dir)
+            os.mkdir(self.playback_dir)
+            self.save(check_filenames=False)
+        self.player.setFocus()
+    
+    def delete_song_widget(self, song, silent=False):
+        self.log.info(f'{song.name}')
+        delete_index = self.list.get_song_index(song)
+        if delete_index == self.playing and self.player.state is not STOPED:
+            show_message_box(DELETE_PLAYING_WARNING, cancel_text='')
+        elif silent or show_message_box(DELETE_SONG_WARNING) == OK:
+                if delete_index < self.playing:
+                    self.playing -= 1
+                self.list.takeItem(delete_index)
+                if delete_index <= self.list.count() - 1:
+                    self.selected = delete_index
+                else:
+                    self.selected = delete_index - 1
+                self.save(check_filenames=False)
+                if self.is_empty():
+                    self.player.eject()
+    
+    def duplicate_song_widget(self, parent_song):
+        song_name = parent_song.name
+        if self.options.checkBoxHardLinkFileName.isChecked():
+            all_songs = self.list.get_all_songs()
+            song_file_name, file_type = os.path.splitext(parent_song.file_name)
+            print('song_file_name:', song_file_name)
+            all_songs_names = [s.name for s in all_songs]
+            all_songs_names.remove(song_name)
+            while song_name in all_songs_names:
+                song_name += '-копия'
+            all_songs_file_names = [s.file_name for s in all_songs]
+            print('all filenames:', all_songs_file_names)
+            all_songs_file_names.remove(song_file_name + file_type)
+            while (song_name + file_type) in all_songs_file_names:
+                song_name += '-копия'
+            song_path = os.path.join(self.playback_dir, song_name+file_type)
+            while os.path.exists(song_path):        
+                song_name += '-копия'
+                song_path = os.path.join(self.playback_dir, song_name+file_type)
+            parent_song_path = os.path.join(self.playback_dir, parent_song.file_name)
+            copy_file(parent_song_path, song_path)
+            file_name = song_name + file_type
+        else:
+            file_name = parent_song.file_name
+        song_widget = SongWidget(parent=self,
+                                id=self.get_id(),
+                                name=song_name,
+                                file_name=file_name,
+                                volume=parent_song.volume,
+                                length=parent_song.length,
+                                start_pos=parent_song.start_pos,
+                                end_pos=parent_song.end_pos,
+                                repeat_mode=parent_song.repeat_mode,
+                                fade_range=parent_song.fade_range,
+                                muted=parent_song.muted,
+                                waveform=parent_song.waveform
+                                )
+        parent_index = self.list.get_song_index(parent_song)
+        self.add_song_widget(song_widget, row=parent_index + 1)
+        if parent_index < self.playing:
+            self.playing += 1
+        if parent_index < self.selected:
+            self.selected += 1
+        self.list.update_items(font_size=self.options.spinBoxFontSize.value(),
+                            buttons_size=self.options.spinBoxButtonsSize.value(),
+                            buttons_set=self.options.get_song_buttons_set().values())
+    
+    def find_files(self, file_list, search_dir, search_in_list=False, not_found=False):
+        search_here = self.get_playback_dir_filenames(search_dir)
+        look_for = file_list   #каждый файл списка ищем среди файлов папки
+        if search_in_list:
+            search_here = file_list     #каждый файл папки ищем среди файлов списка
+            look_for = self.get_playback_dir_filenames(search_dir)
+        search_here_casefolded = tuple(file_name.casefold() for file_name in search_here) 
+        result = []
+        for file_name in look_for:
+            if file_name.casefold() in search_here_casefolded and not not_found:
+                result.append(file_name)
+            elif not file_name.casefold() in search_here_casefolded and not_found:
+                result.append(file_name)
+        return result
+    
+    def get_id(self):   # TODO Переписать как генератор
+        id = self.id_source
+        self.id_source += 1
+        return id
+    
+    def get_new_list_path(self, just_name=False):
+        save_name = DEFAULT_SONGLIST_NAME
+        while True:
+            save_file_path = os.path.join(self.options.save_dir(), save_name + SONG_LIST_EXTENSION)
+            if os.path.exists(save_file_path):
+                with open(save_file_path) as save_file:
+                    if json.load(save_file):
+                        save_name += '_копия'
+                    else:
+                        break
+            else:
+                break
+        if just_name:
+            return save_name
+        return save_file_path
+    
+    def get_playback_dir_filenames(self, playback_dir=''):
+        playback_dir = playback_dir or self.playback_dir
+        self.log.debug(f'playback_dir: {playback_dir}')
+        return [f_name.strip() for f_name in os.listdir(playback_dir
+                                    ) if not f_name.startswith('.')]
+    
+    def get_playback_dir_path(self, list_file_path):
+        dirname, filename = os.path.split(list_file_path)
+        return os.path.join(dirname, os.path.splitext(filename)[0] + '_music')
+    
+    def get_relevant_file_name(self, file_name):
+        name, sep, extension = file_name.rpartition('.')
+        relevant_name = name
+        index = max(name.rfind(' '), name.rfind('.'))
+        if index >= 0:
+            relevant_name = name[index+1:]
+        return sep.join((relevant_name, extension))
+    
+    def get_song(self, direction='', state=STOPED, from_song=None):
+        song = None
+        if state != STOPED:
+            song_index = self.list.get_song_by_index(from_song)
+        else:
+            song_index = self.selected
+            
+        if direction == 'previous':
+            in_list_range = song_index > 0
+            increment = -1
+            message = 'FIRST TRACK !'
+        elif direction == 'next':
+            in_list_range = song_index + 1 < self.list.count()
+            increment = 1
+            message = 'LAST TRACK !'
+        else: #current song
+            in_list_range = True
+            increment = 0
+        
+        if in_list_range:
+            new_song_index = song_index + increment
+            self.set_row(new_song_index)
+            #self.playing = new_song_index
+            print('List -- GET SONG --')
+            print('new_song_index:', new_song_index)
+            song = self.song(new_song_index)
+        else:
+            print(message)
+        return song #возвращает None, если нет следующей или предыдущей песни
+    
     def get_waveforms(self, songs_info):
         for info in songs_info:
             self.log.debug(f'getting waveform. {info.get("name")}')
@@ -434,224 +637,24 @@ class SongListWidget(QtWidgets.QWidget):
                 show_message_box(WAVEFORM_ERROR_WARNING, cancel_text='')
             self.player.progressBuildWaveform.hide()
     
-    def add_song_widget(self, song_widget, row=False):
-        item = QtWidgets.QListWidgetItem()
-        if row is False:
-            self.list.addItem(item)
-        else:
-            self.list.insertItem(row, item)
-        self.list.setItemWidget(item, song_widget)
-        if song_widget.muted:
-            song_widget.buttonPlay.setDisabled(True)
-
-    def duplicate_song_widget(self, parent_song):
-        song_name = parent_song.name
-        if self.options.checkBoxHardLinkFileName.isChecked():
-            all_songs = self.list.get_all_songs()
-            song_file_name, file_type = os.path.splitext(parent_song.file_name)
-            print('song_file_name:', song_file_name)
-            all_songs_names = [s.name for s in all_songs]
-            all_songs_names.remove(song_name)
-            while song_name in all_songs_names:
-                song_name += '-копия'
-            all_songs_file_names = [s.file_name for s in all_songs]
-            print('all filenames:', all_songs_file_names)
-            all_songs_file_names.remove(song_file_name + file_type)
-            while (song_name + file_type) in all_songs_file_names:
-                song_name += '-копия'
-            song_path = os.path.join(self.playback_dir, song_name+file_type)
-            while os.path.exists(song_path):        
-                song_name += '-копия'
-                song_path = os.path.join(self.playback_dir, song_name+file_type)
-            parent_song_path = os.path.join(self.playback_dir, parent_song.file_name)
-            copy_file(parent_song_path, song_path)
-            file_name = song_name + file_type
-        else:
-            file_name = parent_song.file_name
-        song_widget = SongWidget(parent=self,
-                                id=self.get_id(),
-                                name=song_name,
-                                file_name=file_name,
-                                volume=parent_song.volume,
-                                length=parent_song.length,
-                                start_pos=parent_song.start_pos,
-                                end_pos=parent_song.end_pos,
-                                repeat_mode=parent_song.repeat_mode,
-                                fade_range=parent_song.fade_range,
-                                muted=parent_song.muted,
-                                waveform=parent_song.waveform
-                                )
-        parent_index = self.list.get_song_index(parent_song)
-        self.add_song_widget(song_widget, row=parent_index + 1)
-        if parent_index < self.playing:
-            self.playing += 1
-        if parent_index < self.selected:
-            self.selected += 1
-        self.list.update_items(font_size=self.options.spinBoxFontSize.value(),
-                            buttons_size=self.options.spinBoxButtonsSize.value(),
-                            buttons_set=self.options.get_song_buttons_set().values())
+    def improve_filename(self, filename):
+        self.log.debug(f'source filename: {filename}')
+        improved = False
+        if not filename.isascii():
+            valid_filename_symbols = []
+            for s in filename:
+                if s not in VALID_SYMBOL_CODES:
+                    s = '#'
+                    improved = True
+                valid_filename_symbols.append(s)
+            if improved:
+                result = ''.join(valid_filename_symbols)
+                self.log.warning(f'filename has changed to {result}')
+                return result
     
-    def delete_song_widget(self, song, silent=False):
-        self.log.info(f'{song.name}')
-        delete_index = self.list.get_song_index(song)
-        if delete_index == self.playing and self.player.state is not STOPED:
-            show_message_box(DELETE_PLAYING_WARNING, cancel_text='')
-        elif silent or show_message_box(DELETE_SONG_WARNING) == OK:
-                if delete_index < self.playing:
-                    self.playing -= 1
-                self.list.takeItem(delete_index)
-                if delete_index <= self.list.count() - 1:
-                    self.selected = delete_index
-                else:
-                    self.selected = delete_index - 1
-                self.save(check_filenames=False)
-                if self.is_empty():
-                    self.player.eject()
-                    
-    def set_unique_names(self):
-        all_songs = self.list.get_all_songs()
-        for song in all_songs:
-            unique_name = song.name
-            song_file_name, file_type = os.path.splitext(song.file_name)
-            if unique_name != song_file_name:
-                self.duplicate_song_widget(song)
-                self.delete_song_widget(song, silent=True)
+    def is_empty(self):
+        return not self.list.count() > 0 or False
     
-    def save_list_name(self):
-        delete_old_list = self.options.checkBoxRenameDeleteOldList.isChecked()
-        new_name = self.lineListHeader.text()
-        new_file_name = new_name + SONG_LIST_EXTENSION
-        save_dir = os.path.dirname(self.save_file_path)
-        if (not self.find_files((new_file_name,), save_dir) or
-                    show_message_box(LIST_FILE_EXISTS_WARNING.format(new_name), 
-                                          ok_text='Перезаписать', default_button=CANCEL)
-                                          == OK):
-            new_save_file_path = os.path.join(save_dir, new_name+SONG_LIST_EXTENSION).lower()
-            old_save_file_path = os.path.normpath(self.save_file_path.lower())
-            new_save_file_path = os.path.normpath(new_save_file_path.lower())
-            print('OLD:', old_save_file_path)
-            print('NEW:', new_save_file_path)
-            if new_save_file_path != old_save_file_path:
-                new_save_file_path = os.path.abspath(new_save_file_path)
-                self.save_as(new_save_file_path)
-                if (not self.new_list_created and
-                        self.options.checkBoxRenameDeleteOldList.isChecked()
-                        ):
-                    remove_file(old_save_file_path, self.log)
-                    self.player.eject() 
-                    remove_dir(self.get_playback_dir_path(old_save_file_path))
-        self.normal_mode()
-        self.new_list_created = False
-        if not self.is_empty():
-            self.player.load(self.song(self.playing))
-        else:
-            self.player.enable(False)
-    
-    def new_list(self, event=None):
-        if show_message_box(NEW_LIST_WARNING) == OK:
-            self.save(check_filenames=False)
-            self.player._stop()
-            self.clear(silent=True)
-            new_list_name = self.get_new_list_path(just_name=True)
-            self.new_list_created = True
-            self.rename_mode(name=new_list_name)
-    
-    def get_new_list_path(self, just_name=False):
-        save_name = DEFAULT_SONGLIST_NAME
-        while True:
-            save_file_path = os.path.join(self.options.save_dir(), save_name + SONG_LIST_EXTENSION)
-            if os.path.exists(save_file_path):
-                with open(save_file_path) as save_file:
-                    if json.load(save_file):
-                        save_name += '_копия'
-                    else:
-                        break
-            else:
-                break
-        if just_name:
-            return save_name
-        return save_file_path
-
-    def save(self, check_filenames=True, silent=False):
-        self.log.debug(f'Saving... check_filenames={check_filenames}')
-        self.log.debug(f'silent={silent}')
-        self.log.info(f'{self.save_file_path}')
-        list_name = os.path.basename(self.save_file_path).partition('.')[0]
-        self.buttonListHeader.setText(list_name)
-        list_tooltip = f'{list_name}\n{self.save_file_path}'
-        self.buttonListHeader.setToolTip(list_tooltip)
-        songs_info = []
-        short_names = []
-        for song_info in self.list.get_all_songs(info=True):
-            short_names.append(song_info.get('name')[:4])
-            songs_info.append(song_info)
-        self.log.debug(f'saved: {short_names}')
-        #print('Save file path:', self.save_file_path)
-        try:
-            with open(self.save_file_path, 'w') as save_file:
-                json.dump(songs_info, save_file, indent=4)
-        except Exception as e:
-            self.log.error('Ошибка сохранения файла списка!', exc_info=True)
-            self.log.error(f'songlist file path: {self.save_file_path}')
-            self.log.error(f'not saved files: {short_names}')
-            show_message_box(SONG_LIST_SAVING_ERROR_WARNING.format(e), cancel_text='')
-        if check_filenames:
-            self.log.debug('checking filenames...')
-            song_filenames = [song_info.get('file_name') for song_info in songs_info]
-            filenames_not_in_list = self.find_files(file_list=song_filenames, 
-                                            search_dir=self.playback_dir,
-                                            search_in_list=True,
-                                            not_found=True)
-            silent_mode = 'remove'
-            for filename in filenames_not_in_list:
-                if silent:
-                    if silent_mode == 'remove':
-                        message_result = OK_CHECKED
-                    else:
-                        message_result = MIDDLE_CHECKED
-                else:
-                    warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
-                    message_result = show_message_box(warning, 
-                                                    ok_text='Удалить',
-                                                    cancel_text='Оставить',
-                                                    middle_text='Вернуть в список',
-                                                    checkbox_text='Применить ко всем')
-                if message_result == OK or message_result == OK_CHECKED:
-                    if remove_file(os.path.join(self.playback_dir, filename), self.log):
-                        self.log.debug(f'REMOVED: {filename}')   
-                    if message_result == OK_CHECKED:
-                        silent_mode = 'remove'
-                        silent = True
-                elif message_result == MIDDLE or message_result == MIDDLE_CHECKED:
-                    self.add_songs(filenames=[filename,])
-                    if message_result == MIDDLE_CHECKED:
-                        silent_mode = 'return'
-                        silent = True
-                elif message_result == CANCEL_CHECKED:
-                    break
-    
-    def save_as(self, save_file_path='', blank=False):
-        if not save_file_path:
-            save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
-                                     os.path.join('.', self.options.save_dir()), 'SongList File (*.sl)')[0]
-            path, extension = os.path.splitext(save_file_path)
-            if not extension:
-                save_file_path += SONG_LIST_EXTENSION
-            self.player.setFocus()
-        if save_file_path and save_file_path != self.save_file_path:
-            new_playback_dir_path = self.get_playback_dir_path(save_file_path)
-            if os.path.exists(new_playback_dir_path):
-                    remove_dir(new_playback_dir_path)
-            os.mkdir(new_playback_dir_path)
-            if not blank:
-                for song in self.list.get_all_songs():
-                    old_song_path = os.path.join(self.playback_dir, song.file_name)
-                    new_song_path = os.path.join(new_playback_dir_path, song.file_name)
-                    copy_file(old_song_path, new_song_path, self.log)
-            self.playback_dir = new_playback_dir_path
-            self.save_file_path = save_file_path
-        self.save()
-                 
     def load(self, load_file_path=''):
         if self.save_file_path:
             self.log.info(f'save previous list')
@@ -695,40 +698,34 @@ class SongListWidget(QtWidgets.QWidget):
             self.log.debug(f'saving loaded list...')
             self.save() #вызывается чтобы проверить лишние файлы в папке списка.
         self.player.setFocus()
-            
-    def clear(self, silent=False):
-        result = False
-        if not self.is_empty():
-            message_result = None
-            if not silent:
-                message_result = show_message_box(CLEAR_WARNING, 
-                                                    ok_text='Очистить',
-                                                    checkbox_text='Удалить также и файлы песен')
-            if silent or message_result == OK or message_result == OK_CHECKED:
-                self.list.clear()
-                self.player.eject()
-                self.player.enable(False)
-                if message_result == OK_CHECKED:
-                    self.save(silent=True)
-                result = True
-            else:
-                self.player.enable()
-        self.player.setFocus()
-        return result
-
-    def delete(self, event=None):
-        if show_message_box(LIST_DELETE_WARNING) == OK:
-            self.player._stop()
-            self.player.eject()
-            self.clear(silent=True)
-            remove_file(self.save_file_path, self.log)
-            remove_dir(self.playback_dir)
-            self.save_file_path = self.get_new_list_path()
-            self.playback_dir = self.get_playback_dir_path(self.save_file_path)
-            if os.path.exists(self.playback_dir):
-                remove_dir(self.playback_dir)
-            os.mkdir(self.playback_dir)
+    
+    def mute_song(self, song):
+        self.save(check_filenames=False)
+        if song.muted:
+            song.buttonPlay.setDisabled(True)
+            if song == self.song(self.selected):
+                self.player.enable(False, just_playback=True)
+            if song == self.song(self.playing) and self.player.state == PLAYING:
+                self.player._stop()
+        else:
+            song.buttonPlay.setEnabled(True)
+            self.player.enable(just_playback=True)
+    
+    def new_list(self, event=None):
+        if show_message_box(NEW_LIST_WARNING) == OK:
             self.save(check_filenames=False)
+            self.player._stop()
+            self.clear(silent=True)
+            new_list_name = self.get_new_list_path(just_name=True)
+            self.new_list_created = True
+            self.rename_mode(name=new_list_name)
+    
+    def normal_mode(self):
+        song = self.song(self.playing)
+        self.player.enable(bool(song and not song.muted), just_playback=True)
+        self.buttonListHeader.show()
+        self.lineListHeader.hide()
+        self.lineListHeader.clearFocus()
         self.player.setFocus()
     
     def project_is_valid(self, load_file_path):
@@ -834,30 +831,7 @@ class SongListWidget(QtWidgets.QWidget):
             valid = True
         with open(load_file_path, 'w') as save_file:
             json.dump(songs_info, save_file)
-        return valid    
-    
-    def get_relevant_file_name(self, file_name):
-        name, sep, extension = file_name.rpartition('.')
-        relevant_name = name
-        index = max(name.rfind(' '), name.rfind('.'))
-        if index >= 0:
-            relevant_name = name[index+1:]
-        return sep.join((relevant_name, extension))
-            
-    def find_files(self, file_list, search_dir, search_in_list=False, not_found=False):
-        search_here = self.get_playback_dir_filenames(search_dir)
-        look_for = file_list   #каждый файл списка ищем среди файлов папки
-        if search_in_list:
-            search_here = file_list     #каждый файл папки ищем среди файлов списка
-            look_for = self.get_playback_dir_filenames(search_dir)
-        search_here_casefolded = tuple(file_name.casefold() for file_name in search_here) 
-        result = []
-        for file_name in look_for:
-            if file_name.casefold() in search_here_casefolded and not not_found:
-                result.append(file_name)
-            elif not file_name.casefold() in search_here_casefolded and not_found:
-                result.append(file_name)
-        return result
+        return valid
     
     def remove_info_by_filename(self, song_filenames, songs_info):
         new_songs_info = []
@@ -868,6 +842,143 @@ class SongListWidget(QtWidgets.QWidget):
             else:
                 self.log.debug('song removed')
         return new_songs_info
+    
+    def rename_song(self, list_item=None):
+        self.renamed_song = self.list.itemWidget(list_item)
+        self.renamed_song.rename()
+        
+    def rename_mode(self, event=None, name=None):
+        self.player.enable_controls(False)
+        self.buttonListHeader.hide()
+        self.lineListHeader.show()
+        self.lineListHeader.setText(name or self.buttonListHeader.text())
+        self.lineListHeader.selectAll()
+        self.lineListHeader.setFocus()
+    
+    def save(self, check_filenames=True, silent=False):
+        self.log.debug(f'Saving... check_filenames={check_filenames}')
+        self.log.debug(f'silent={silent}')
+        self.log.info(f'{self.save_file_path}')
+        list_name = os.path.basename(self.save_file_path).partition('.')[0]
+        self.buttonListHeader.setText(list_name)
+        list_tooltip = f'{list_name}\n{self.save_file_path}'
+        self.buttonListHeader.setToolTip(list_tooltip)
+        songs_info = []
+        short_names = []
+        for song_info in self.list.get_all_songs(info=True):
+            short_names.append(song_info.get('name')[:4])
+            songs_info.append(song_info)
+        self.log.debug(f'saved: {short_names}')
+        #print('Save file path:', self.save_file_path)
+        try:
+            with open(self.save_file_path, 'w') as save_file:
+                json.dump(songs_info, save_file, indent=4)
+        except Exception as e:
+            self.log.error('Ошибка сохранения файла списка!', exc_info=True)
+            self.log.error(f'songlist file path: {self.save_file_path}')
+            self.log.error(f'not saved files: {short_names}')
+            show_message_box(SONG_LIST_SAVING_ERROR_WARNING.format(e), cancel_text='')
+        if check_filenames:
+            self.log.debug('checking filenames...')
+            song_filenames = [song_info.get('file_name') for song_info in songs_info]
+            filenames_not_in_list = self.find_files(file_list=song_filenames, 
+                                            search_dir=self.playback_dir,
+                                            search_in_list=True,
+                                            not_found=True)
+            silent_mode = 'remove'
+            for filename in filenames_not_in_list:
+                if silent:
+                    if silent_mode == 'remove':
+                        message_result = OK_CHECKED
+                    else:
+                        message_result = MIDDLE_CHECKED
+                else:
+                    warning = SOURCE_DELETE_WARNING.format(filename.partition('.')[0])
+                    message_result = show_message_box(warning, 
+                                                    ok_text='Удалить',
+                                                    cancel_text='Оставить',
+                                                    middle_text='Вернуть в список',
+                                                    checkbox_text='Применить ко всем')
+                if message_result == OK or message_result == OK_CHECKED:
+                    if remove_file(os.path.join(self.playback_dir, filename), self.log):
+                        self.log.debug(f'REMOVED: {filename}')   
+                    if message_result == OK_CHECKED:
+                        silent_mode = 'remove'
+                        silent = True
+                elif message_result == MIDDLE or message_result == MIDDLE_CHECKED:
+                    self.add_songs(filenames=[filename,])
+                    if message_result == MIDDLE_CHECKED:
+                        silent_mode = 'return'
+                        silent = True
+                elif message_result == CANCEL_CHECKED:
+                    break
+    
+    def save_as(self, save_file_path='', blank=False):
+        if not save_file_path:
+            save_file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Файл сохранения',
+                                     os.path.join('.', self.options.save_dir()), 'SongList File (*.sl)')[0]
+            path, extension = os.path.splitext(save_file_path)
+            if not extension:
+                save_file_path += SONG_LIST_EXTENSION
+            self.player.setFocus()
+        if save_file_path and save_file_path != self.save_file_path:
+            new_playback_dir_path = self.get_playback_dir_path(save_file_path)
+            if os.path.exists(new_playback_dir_path):
+                    remove_dir(new_playback_dir_path)
+            os.mkdir(new_playback_dir_path)
+            if not blank:
+                for song in self.list.get_all_songs():
+                    old_song_path = os.path.join(self.playback_dir, song.file_name)
+                    new_song_path = os.path.join(new_playback_dir_path, song.file_name)
+                    copy_file(old_song_path, new_song_path, self.log)
+            self.playback_dir = new_playback_dir_path
+            self.save_file_path = save_file_path
+        self.save()
+    
+    def save_list_name(self):
+        delete_old_list = self.options.checkBoxRenameDeleteOldList.isChecked()
+        new_name = self.lineListHeader.text()
+        new_file_name = new_name + SONG_LIST_EXTENSION
+        save_dir = os.path.dirname(self.save_file_path)
+        if (not self.find_files((new_file_name,), save_dir) or
+                    show_message_box(LIST_FILE_EXISTS_WARNING.format(new_name), 
+                                          ok_text='Перезаписать', default_button=CANCEL)
+                                          == OK):
+            new_save_file_path = os.path.join(save_dir, new_name+SONG_LIST_EXTENSION).lower()
+            old_save_file_path = os.path.normpath(self.save_file_path.lower())
+            new_save_file_path = os.path.normpath(new_save_file_path.lower())
+            print('OLD:', old_save_file_path)
+            print('NEW:', new_save_file_path)
+            if new_save_file_path != old_save_file_path:
+                new_save_file_path = os.path.abspath(new_save_file_path)
+                self.save_as(new_save_file_path)
+                if (not self.new_list_created and
+                        self.options.checkBoxRenameDeleteOldList.isChecked()
+                        ):
+                    remove_file(old_save_file_path, self.log)
+                    self.player.eject() 
+                    remove_dir(self.get_playback_dir_path(old_save_file_path))
+        self.normal_mode()
+        self.new_list_created = False
+        if not self.is_empty():
+            self.player.load(self.song(self.playing))
+        else:
+            self.player.enable(False)
+        
+    def scale_number(self, unscaled, to_min, to_max, from_min, from_max):
+        return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
+    
+    def selected_song(self):
+        return self.song(self.selected)
+    
+    def set_unique_names(self):
+        all_songs = self.list.get_all_songs()
+        for song in all_songs:
+            unique_name = song.name
+            song_file_name, file_type = os.path.splitext(song.file_name)
+            if unique_name != song_file_name:
+                self.duplicate_song_widget(song)
+                self.delete_song_widget(song, silent=True)
                 
     def set_row(self, target, playing=False):
         if type(target) != int:
@@ -877,127 +988,15 @@ class SongListWidget(QtWidgets.QWidget):
         current_row = self.list.currentRow()
         self.log.debug(f'from {current_row} to {row}')
         self.list.setCurrentRow(row) # смена строки вызывает change_row,
-        row_changed = current_row != row # если строка поменялась
+        row_changed = (current_row != row) # если строка поменялась
         if not row_changed:
             self.change_row(row)
         if playing:                  
             self.playing = row
         return row_changed
             
-    def change_row(self, row):
-        self.selected = row
-        self.log.debug(f'Selected song index: {self.selected}')
-        #print('Player_state:', self.player.state)
-        if self.player.state is STOPED:
-            self.playing = row
-            song = self.song(self.playing)
-            if song:
-                self.player.eject()
-                self.player.load(song)
-                self.normal_mode()
-            else:
-                self.log.debug('Song widget not detected!')
-                self.player.enable(False)
-        if self.renamed_song:
-            self.renamed_song.normal_mode()
-            
-    def rename_song(self, list_item=None):
-        self.renamed_song = self.list.itemWidget(list_item)
-        self.renamed_song.rename()
-
-    def mute_song(self, song):
-        self.save(check_filenames=False)
-        if song.muted:
-            song.buttonPlay.setDisabled(True)
-            if song == self.song(self.selected):
-                self.player.enable(False, just_playback=True)
-            if song == self.song(self.playing) and self.player.state == PLAYING:
-                self.player._stop()
-        else:
-            song.buttonPlay.setEnabled(True)
-            self.player.enable(just_playback=True)
-        
-    def rename_mode(self, event=None, name=None):
-        self.player.enable_controls(False)
-        self.buttonListHeader.hide()
-        self.lineListHeader.show()
-        self.lineListHeader.setText(name or self.buttonListHeader.text())
-        self.lineListHeader.selectAll()
-        self.lineListHeader.setFocus()
-
-    def normal_mode(self):
-        song = self.song(self.playing)
-        self.player.enable(bool(song and not song.muted), just_playback=True)
-        self.buttonListHeader.show()
-        self.lineListHeader.hide()
-        self.lineListHeader.clearFocus()
-        self.player.setFocus()
-        
-    def get_playback_dir_filenames(self, playback_dir=''):
-        playback_dir = playback_dir or self.playback_dir
-        self.log.debug(f'playback_dir: {playback_dir}')
-        return [f_name.strip() for f_name in os.listdir(playback_dir
-                                    ) if not f_name.startswith('.')]
-    
-    def improve_filename(self, filename):
-        self.log.debug(f'source filename: {filename}')
-        improved = False
-        if not filename.isascii():
-            valid_filename_symbols = []
-            for s in filename:
-                if s not in VALID_SYMBOL_CODES:
-                    s = '#'
-                    improved = True
-                valid_filename_symbols.append(s)
-            if improved:
-                result = ''.join(valid_filename_symbols)
-                self.log.warning(f'filename has changed to {result}')
-                return result
-
-    def get_playback_dir_path(self, list_file_path):
-        dirname, filename = os.path.split(list_file_path)
-        return os.path.join(dirname, os.path.splitext(filename)[0] + '_music')
-              
-    def get_id(self):   # TODO Переписать как генератор
-        id = self.id_source
-        self.id_source += 1
-        return id
-    
-    def is_empty(self):
-        return not self.list.count() > 0 or False
-            
     def set_current_row(self, row):
         self.list.setCurrentRow(row)
-        
-    def get_song(self, direction='', state=STOPED):
-        song = None
-        if state != STOPED:
-            song_index = self.playing
-        else:
-            song_index = self.selected
-            
-        if direction == 'previous':
-            in_list_range = song_index > 0
-            increment = -1
-            message = 'FIRST TRACK !'
-        elif direction == 'next':
-            in_list_range = song_index + 1 < self.list.count()
-            increment = 1
-            message = 'LAST TRACK !'
-        else: #current song
-            in_list_range = True
-            increment = 0
-        
-        if in_list_range:
-            new_song_index = song_index + increment
-            self.set_row(new_song_index)
-            self.playing = new_song_index
-            print('List -- GET SONG --')
-            print('new_song_index:', self.playing)
-            song = self.song(self.playing)
-        else:
-            print(message)
-        return song #возвращает None, если нет следующей или предыдущей песни
         
     def song(self, index):
         return self.list.get_song_by_index(index)
